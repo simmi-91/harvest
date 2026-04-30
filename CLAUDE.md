@@ -113,3 +113,17 @@ Required in `.env.local`:
 -   Use Tailwind for styling (no CSS modules)
 -   Prefer server components where possible
 -   Client components marked with 'use client'
+
+## Git Conventions
+
+Use Conventional Commits for all commit messages:
+
+Types: `feat` (new feature), `fix` (bug fix), `chore` (config/setup/dependencies), `docs` (documentation), `test` (tests)
+
+Rules:
+
+-   English only
+-   Imperative form ("add" not "added")
+-   Lowercase after type
+-   No period at end
+-   Keep under 72 characters
