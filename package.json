@@ -12,22 +12,31 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "db:migrate": "psql $DATABASE_URL -f scripts/init.sql",
-    "db:seed": "psql $DATABASE_URL -f scripts/seed.sql"
+    "db:seed": "psql $DATABASE_URL -f scripts/seed.sql",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "next": "16.2.4",
+    "@google/generative-ai": "^0.24.1",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.14.0",
+    "next": "^16.2.5",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.13.3",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^30.0.0",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.11.13",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "jest": "^29.7.0",

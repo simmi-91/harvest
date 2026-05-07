@@ -1,25 +1,36 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+const LINKS = [
+    { href: '/', label: 'Oversikt' },
+    { href: '/plants', label: 'Planter' },
+    { href: '/upload', label: 'Last opp' },
+];
 
 export function Navigation() {
+    const pathname = usePathname();
+
     return (
-        <nav className="border-b border-zinc-200 bg-white">
-            <div className="max-w-4xl mx-auto px-4">
-                <div className="flex h-14 items-center gap-8">
-                    <Link href="/" className="font-semibold text-zinc-900 text-lg">
-                        Høst
-                    </Link>
-                    <div className="flex gap-6 text-sm">
-                        <Link href="/" className="text-zinc-600 hover:text-zinc-900 transition-colors">
-                            Oversikt
+        <nav className="border-b" style={{ background: 'rgba(240, 238, 226, 0.9)', borderColor: 'var(--color3)' }}>
+            <div className="flex h-12">
+                {LINKS.map(({ href, label }) => {
+                    const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+                    return (
+                        <Link
+                            key={href}
+                            href={href}
+                            className="flex-1 flex items-center justify-center text-xs font-semibold uppercase tracking-widest transition-colors"
+                            style={{
+                                color: active ? 'var(--color6)' : 'var(--color2)',
+                                borderBottom: active ? '3px solid var(--color6)' : '3px solid transparent',
+                            }}
+                        >
+                            {label}
                         </Link>
-                        <Link href="/plants" className="text-zinc-600 hover:text-zinc-900 transition-colors">
-                            Planter
-                        </Link>
-                        <Link href="/upload" className="text-zinc-600 hover:text-zinc-900 transition-colors">
-                            Last opp
-                        </Link>
-                    </div>
-                </div>
+                    );
+                })}
             </div>
         </nav>
     );

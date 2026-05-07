@@ -1,13 +1,15 @@
 import { GET, POST } from '@/app/api/harvests/route';
-import { query, withTransaction } from '@/lib/db';
+import { db } from '@/lib/db';
 
 jest.mock('@/lib/db', () => ({
-    query: jest.fn(),
-    withTransaction: jest.fn(),
+    db: {
+        query: {
+            harvests: { findMany: jest.fn() },
+        },
+        insert: jest.fn(),
+        transaction: jest.fn(),
+    },
 }));
-
-const mockQuery = jest.mocked(query);
-const mockWithTransaction = jest.mocked(withTransaction);
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -41,12 +43,17 @@ describe('GET /api/harvests', () => {
                 plant_id: 1,
                 year: 2026,
                 week: 18,
-                plant_name: 'Basilikum',
-                plant_category: 'herb',
+                amount: null,
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 1, name: 'Basilikum', category: 'herb' },
                 locations: [],
             },
         ];
-        mockQuery.mockResolvedValueOnce({ rows: mockHarvests } as never);
+        (db.query.harvests.findMany as jest.Mock).mockResolvedValue(mockHarvests);
 
         const req = new Request('http://localhost/api/harvests?year=2026&week=18');
         const res = await GET(req);
@@ -57,7 +64,7 @@ describe('GET /api/harvests', () => {
     });
 
     it('returns 500 when query throws', async () => {
-        mockQuery.mockRejectedValueOnce(new Error('DB error') as never);
+        (db.query.harvests.findMany as jest.Mock).mockRejectedValue(new Error('DB error'));
 
         const req = new Request('http://localhost/api/harvests?year=2026&week=18');
         const res = await GET(req);
@@ -86,16 +93,29 @@ describe('POST /api/harvests', () => {
         expect(res.status).toBe(400);
     });
 
+    it('returns 400 when amount is missing', async () => {
+        const req = new Request('http://localhost/api/harvests', {
+            method: 'POST',
+            body: JSON.stringify({ plant_id: 1, year: 2026, week: 18 }),
+        });
+        const res = await POST(req);
+        expect(res.status).toBe(400);
+    });
+
     it('creates a harvest and returns 201', async () => {
-        const created = { id: 1, plant_id: 1, year: 2026, week: 18, amount: null, is_new: false };
-        const mockClient = {
-            query: jest.fn().mockResolvedValueOnce({ rows: [created] }),
+        const created = { id: 1, plant_id: 1, year: 2026, week: 18, amount: '2 kg', is_new: false };
+        const mockTx = {
+            insert: jest.fn().mockReturnValue({
+                values: jest.fn().mockReturnValue({
+                    returning: jest.fn().mockResolvedValue([created]),
+                }),
+            }),
         };
-        mockWithTransaction.mockImplementationOnce(async (fn) => fn(mockClient as never));
+        (db.transaction as jest.Mock).mockImplementationOnce(async (fn: (tx: typeof mockTx) => Promise<unknown>) => fn(mockTx));
 
         const req = new Request('http://localhost/api/harvests', {
             method: 'POST',
-            body: JSON.stringify({ plant_id: 1, year: 2026, week: 18, locations: [] }),
+            body: JSON.stringify({ plant_id: 1, year: 2026, week: 18, amount: '2 kg', locations: [] }),
         });
         const res = await POST(req);
         expect(res.status).toBe(201);
@@ -104,13 +124,11 @@ describe('POST /api/harvests', () => {
     });
 
     it('returns 409 on duplicate harvest', async () => {
-        mockWithTransaction.mockRejectedValueOnce(
-            Object.assign(new Error('unique constraint'), { message: 'unique' }) as never
-        );
+        (db.transaction as jest.Mock).mockRejectedValueOnce(new Error('unique constraint'));
 
         const req = new Request('http://localhost/api/harvests', {
             method: 'POST',
-            body: JSON.stringify({ plant_id: 1, year: 2026, week: 18 }),
+            body: JSON.stringify({ plant_id: 1, year: 2026, week: 18, amount: '1 kg' }),
         });
         const res = await POST(req);
         expect(res.status).toBe(409);

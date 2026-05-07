@@ -22,12 +22,15 @@
  */
 
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { asc } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { plants } from '@/lib/schema';
+import { handleDatabaseError } from '@/lib/errorHandlers';
 
 export async function GET() {
     try {
-        const result = await query('SELECT * FROM plants ORDER BY name');
-        return NextResponse.json(result.rows);
+        const result = await db.select().from(plants).orderBy(asc(plants.name));
+        return NextResponse.json(result);
     } catch {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
@@ -42,18 +45,19 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'name is required' }, { status: 400 });
         }
 
-        const result = await query(
-            `INSERT INTO plants (name, category, harvest_instructions, tips, latin_name)
-             VALUES ($1, $2, $3, $4, $5)
-             RETURNING *`,
-            [name, category ?? 'vegetable', harvest_instructions ?? null, tips ?? null, latin_name ?? null]
-        );
+        const [plant] = await db
+            .insert(plants)
+            .values({
+                name,
+                category: category ?? 'vegetable',
+                harvest_instructions: harvest_instructions ?? null,
+                tips: tips ?? null,
+                latin_name: latin_name ?? null,
+            })
+            .returning();
 
-        return NextResponse.json(result.rows[0], { status: 201 });
+        return NextResponse.json(plant, { status: 201 });
     } catch (error: unknown) {
-        if (error instanceof Error && error.message.includes('unique')) {
-            return NextResponse.json({ error: 'A plant with that name already exists' }, { status: 409 });
-        }
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return handleDatabaseError(error, 'A plant with that name already exists');
     }
 }

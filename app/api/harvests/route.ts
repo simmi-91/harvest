@@ -43,9 +43,11 @@
  */
 
 import { NextResponse } from 'next/server';
-import { query, withTransaction } from '@/lib/db';
-import type { HarvestWithDetails } from '@/types';
-import type { PoolClient } from 'pg';
+import { and, eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { harvests, harvestLocations } from '@/lib/schema';
+import { handleDatabaseError } from '@/lib/errorHandlers';
+import type { HarvestWithDetails, LocationInput, PlantCategory } from '@/types';
 
 export async function GET(request: Request) {
     try {
@@ -65,89 +67,68 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'year and week must be valid numbers' }, { status: 400 });
         }
 
-        const result = await query<HarvestWithDetails>(
-            `SELECT
-                h.id, h.plant_id, h.year, h.week, h.amount, h.harvest_note,
-                h.is_new, h.is_done, h.created_at, h.updated_at,
-                p.name AS plant_name, p.category AS plant_category,
-                COALESCE(
-                    json_agg(
-                        json_build_object(
-                            'id', hl.id,
-                            'address', hl.address,
-                            'position', hl.position,
-                            'boxes', hl.boxes,
-                            'location_note', hl.location_note
-                        )
-                    ) FILTER (WHERE hl.id IS NOT NULL),
-                    '[]'::json
-                ) AS locations
-             FROM harvests h
-             JOIN plants p ON h.plant_id = p.id
-             LEFT JOIN harvest_locations hl ON hl.harvest_id = h.id
-             WHERE h.year = $1 AND h.week = $2
-               AND ($3::varchar IS NULL OR EXISTS (
-                   SELECT 1 FROM harvest_locations hl2
-                   WHERE hl2.harvest_id = h.id AND hl2.address = $3
-               ))
-               AND ($4::varchar IS NULL OR EXISTS (
-                   SELECT 1 FROM harvest_locations hl2
-                   WHERE hl2.harvest_id = h.id AND hl2.position = $4
-               ))
-             GROUP BY h.id, p.id, p.name, p.category
-             ORDER BY p.name`,
-            [yearNum, weekNum, address, position]
-        );
+        let results = await db.query.harvests.findMany({
+            where: and(eq(harvests.year, yearNum), eq(harvests.week, weekNum)),
+            with: { plant: true, locations: true },
+        });
 
-        return NextResponse.json(result.rows);
+        if (address) results = results.filter((h) => h.locations.some((l) => l.address === address));
+        if (position) results = results.filter((h) => h.locations.some((l) => l.position === position));
+        results.sort((a, b) => (a.plant?.name ?? '').localeCompare(b.plant?.name ?? ''));
+
+        const response = results.map((h) => ({
+            ...h,
+            created_at: h.created_at?.toISOString() ?? '',
+            updated_at: h.updated_at?.toISOString() ?? '',
+            plant_name: h.plant?.name ?? '',
+            plant_category: (h.plant?.category ?? 'vegetable') as PlantCategory,
+            locations: h.locations.map(({ harvest_id: _hid, ...loc }) => ({
+                ...loc,
+                boxes: loc.boxes as number[] | null,
+            })),
+        })) as unknown as HarvestWithDetails[];
+
+        return NextResponse.json(response);
     } catch {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
-
-type LocationInput = {
-    address: string;
-    position?: string;
-    boxes?: number[];
-    location_note?: string;
-};
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { plant_id, year, week, amount, harvest_note, is_new, locations } = body;
 
-        if (!plant_id || !year || !week) {
+        if (!plant_id || !year || !week || !amount) {
             return NextResponse.json(
-                { error: 'plant_id, year, and week are required' },
-                { status: 400 }
+                { error: 'plant_id, year, week, and amount are required' },
+                { status: 400 },
             );
         }
 
-        const harvest = await withTransaction(async (client: PoolClient) => {
-            const harvestResult = await client.query(
-                `INSERT INTO harvests (plant_id, year, week, amount, harvest_note, is_new)
-                 VALUES ($1, $2, $3, $4, $5, $6)
-                 RETURNING *`,
-                [plant_id, year, week, amount ?? null, harvest_note ?? null, is_new ?? false]
-            );
+        const harvest = await db.transaction(async (tx) => {
+            const [inserted] = await tx
+                .insert(harvests)
+                .values({
+                    plant_id,
+                    year,
+                    week,
+                    amount,
+                    harvest_note: harvest_note ?? null,
+                    is_new: is_new ?? false,
+                })
+                .returning();
 
-            const inserted = harvestResult.rows[0];
-
-            if (Array.isArray(locations)) {
-                for (const loc of locations as LocationInput[]) {
-                    await client.query(
-                        `INSERT INTO harvest_locations (harvest_id, address, position, boxes, location_note)
-                         VALUES ($1, $2, $3, $4, $5)`,
-                        [
-                            inserted.id,
-                            loc.address,
-                            loc.position ?? null,
-                            loc.boxes ? JSON.stringify(loc.boxes) : null,
-                            loc.location_note ?? null,
-                        ]
-                    );
-                }
+            if (Array.isArray(locations) && locations.length > 0) {
+                await tx.insert(harvestLocations).values(
+                    locations.map((loc: LocationInput) => ({
+                        harvest_id: inserted.id,
+                        address: loc.address,
+                        position: loc.position ?? null,
+                        boxes: loc.boxes ?? null,
+                        location_note: loc.location_note ?? null,
+                    })),
+                );
             }
 
             return inserted;
@@ -155,12 +136,6 @@ export async function POST(request: Request) {
 
         return NextResponse.json(harvest, { status: 201 });
     } catch (error: unknown) {
-        if (error instanceof Error && error.message.includes('unique')) {
-            return NextResponse.json(
-                { error: 'A harvest for this plant, year and week already exists' },
-                { status: 409 }
-            );
-        }
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return handleDatabaseError(error, 'A harvest for this plant, year and week already exists');
     }
 }

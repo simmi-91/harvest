@@ -1,12 +1,18 @@
 import { GET, POST } from '@/app/api/plants/route';
 import { GET as GET_ONE, PUT, DELETE } from '@/app/api/plants/[id]/route';
-import { query } from '@/lib/db';
+import { db } from '@/lib/db';
 
 jest.mock('@/lib/db', () => ({
-    query: jest.fn(),
+    db: {
+        query: {
+            plants: { findFirst: jest.fn() },
+        },
+        select: jest.fn(),
+        insert: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
 }));
-
-const mockQuery = jest.mocked(query);
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -18,9 +24,12 @@ describe('GET /api/plants', () => {
             { id: 1, name: 'Basilikum', category: 'herb' },
             { id: 2, name: 'Chili', category: 'vegetable' },
         ];
-        mockQuery.mockResolvedValueOnce({ rows: plants } as never);
+        (db.select as jest.Mock).mockReturnValue({
+            from: jest.fn().mockReturnValue({
+                orderBy: jest.fn().mockResolvedValue(plants),
+            }),
+        });
 
-        const req = new Request('http://localhost/api/plants');
         const res = await GET();
         expect(res.status).toBe(200);
         const body = await res.json();
@@ -29,7 +38,11 @@ describe('GET /api/plants', () => {
     });
 
     it('returns 500 on db error', async () => {
-        mockQuery.mockRejectedValueOnce(new Error('DB error') as never);
+        (db.select as jest.Mock).mockReturnValue({
+            from: jest.fn().mockReturnValue({
+                orderBy: jest.fn().mockRejectedValue(new Error('DB error')),
+            }),
+        });
         const res = await GET();
         expect(res.status).toBe(500);
     });
@@ -49,7 +62,11 @@ describe('POST /api/plants', () => {
 
     it('creates a plant and returns 201', async () => {
         const created = { id: 1, name: 'Oregano', category: 'herb' };
-        mockQuery.mockResolvedValueOnce({ rows: [created] } as never);
+        (db.insert as jest.Mock).mockReturnValue({
+            values: jest.fn().mockReturnValue({
+                returning: jest.fn().mockResolvedValue([created]),
+            }),
+        });
 
         const req = new Request('http://localhost/api/plants', {
             method: 'POST',
@@ -62,9 +79,11 @@ describe('POST /api/plants', () => {
     });
 
     it('returns 409 on duplicate name', async () => {
-        mockQuery.mockRejectedValueOnce(
-            Object.assign(new Error('unique constraint'), { message: 'unique' }) as never
-        );
+        (db.insert as jest.Mock).mockReturnValue({
+            values: jest.fn().mockReturnValue({
+                returning: jest.fn().mockRejectedValue(new Error('unique constraint')),
+            }),
+        });
 
         const req = new Request('http://localhost/api/plants', {
             method: 'POST',
@@ -83,7 +102,7 @@ describe('GET /api/plants/[id]', () => {
     });
 
     it('returns 404 when plant not found', async () => {
-        mockQuery.mockResolvedValueOnce({ rows: [] } as never);
+        (db.query.plants.findFirst as jest.Mock).mockResolvedValue(undefined);
         const req = new Request('http://localhost/api/plants/99');
         const res = await GET_ONE(req, { params: Promise.resolve({ id: '99' }) });
         expect(res.status).toBe(404);
@@ -91,7 +110,7 @@ describe('GET /api/plants/[id]', () => {
 
     it('returns the plant when found', async () => {
         const plant = { id: 1, name: 'Basilikum', category: 'herb' };
-        mockQuery.mockResolvedValueOnce({ rows: [plant] } as never);
+        (db.query.plants.findFirst as jest.Mock).mockResolvedValue(plant);
         const req = new Request('http://localhost/api/plants/1');
         const res = await GET_ONE(req, { params: Promise.resolve({ id: '1' }) });
         expect(res.status).toBe(200);
@@ -102,14 +121,22 @@ describe('GET /api/plants/[id]', () => {
 
 describe('DELETE /api/plants/[id]', () => {
     it('returns 404 when plant not found', async () => {
-        mockQuery.mockResolvedValueOnce({ rows: [] } as never);
+        (db.delete as jest.Mock).mockReturnValue({
+            where: jest.fn().mockReturnValue({
+                returning: jest.fn().mockResolvedValue([]),
+            }),
+        });
         const req = new Request('http://localhost/api/plants/99');
         const res = await DELETE(req, { params: Promise.resolve({ id: '99' }) });
         expect(res.status).toBe(404);
     });
 
     it('returns 204 on successful delete', async () => {
-        mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] } as never);
+        (db.delete as jest.Mock).mockReturnValue({
+            where: jest.fn().mockReturnValue({
+                returning: jest.fn().mockResolvedValue([{ id: 1 }]),
+            }),
+        });
         const req = new Request('http://localhost/api/plants/1');
         const res = await DELETE(req, { params: Promise.resolve({ id: '1' }) });
         expect(res.status).toBe(204);
@@ -118,7 +145,13 @@ describe('DELETE /api/plants/[id]', () => {
 
 describe('PUT /api/plants/[id]', () => {
     it('returns 404 when plant not found', async () => {
-        mockQuery.mockResolvedValueOnce({ rows: [] } as never);
+        (db.update as jest.Mock).mockReturnValue({
+            set: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnValue({
+                    returning: jest.fn().mockResolvedValue([]),
+                }),
+            }),
+        });
         const req = new Request('http://localhost/api/plants/99', {
             method: 'PUT',
             body: JSON.stringify({ name: 'Ny navn' }),
@@ -129,7 +162,13 @@ describe('PUT /api/plants/[id]', () => {
 
     it('returns updated plant', async () => {
         const updated = { id: 1, name: 'Ny navn', category: 'herb' };
-        mockQuery.mockResolvedValueOnce({ rows: [updated] } as never);
+        (db.update as jest.Mock).mockReturnValue({
+            set: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnValue({
+                    returning: jest.fn().mockResolvedValue([updated]),
+                }),
+            }),
+        });
         const req = new Request('http://localhost/api/plants/1', {
             method: 'PUT',
             body: JSON.stringify({ name: 'Ny navn' }),

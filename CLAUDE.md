@@ -2,6 +2,8 @@
 
 This file provides context for Claude Code when working on this project.
 
+Ask me questions until you are 95% confident you understand exactly what I need. Don't make any assumptions.
+
 ## Project Overview
 
 Harvest is a web app for tracking weekly harvest reports from Ulven Park community garden (samdyrkerlag) in Oslo. Users upload PDF harvest reports, which are parsed by AI to extract structured data about what's ready to harvest, where to find it, and how much to take.
@@ -127,3 +129,10 @@ Rules:
 -   Lowercase after type
 -   No period at end
 -   Keep under 72 characters
+
+## Co-Authorship
+
+When Claude generates substantial code for a commit,
+include the co-author tag:
+
+Co-Authored-By: Claude <noreply@anthropic.com>

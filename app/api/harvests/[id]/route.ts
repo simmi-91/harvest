@@ -43,18 +43,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { query, withTransaction } from '@/lib/db';
-import type { HarvestWithDetails } from '@/types';
-import type { PoolClient } from 'pg';
-
-type RouteContext = { params: Promise<{ id: string }> };
-
-type LocationInput = {
-    address: string;
-    position?: string;
-    boxes?: number[];
-    location_note?: string;
-};
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { harvests, harvestLocations } from '@/lib/schema';
+import type { HarvestWithDetails, LocationInput, PlantCategory, RouteContext } from '@/types';
 
 export async function GET(_request: Request, { params }: RouteContext) {
     try {
@@ -64,36 +56,28 @@ export async function GET(_request: Request, { params }: RouteContext) {
             return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
         }
 
-        const result = await query<HarvestWithDetails>(
-            `SELECT
-                h.id, h.plant_id, h.year, h.week, h.amount, h.harvest_note,
-                h.is_new, h.is_done, h.created_at, h.updated_at,
-                p.name AS plant_name, p.category AS plant_category,
-                COALESCE(
-                    json_agg(
-                        json_build_object(
-                            'id', hl.id,
-                            'address', hl.address,
-                            'position', hl.position,
-                            'boxes', hl.boxes,
-                            'location_note', hl.location_note
-                        )
-                    ) FILTER (WHERE hl.id IS NOT NULL),
-                    '[]'::json
-                ) AS locations
-             FROM harvests h
-             JOIN plants p ON h.plant_id = p.id
-             LEFT JOIN harvest_locations hl ON hl.harvest_id = h.id
-             WHERE h.id = $1
-             GROUP BY h.id, p.id, p.name, p.category`,
-            [idNum]
-        );
+        const result = await db.query.harvests.findFirst({
+            where: eq(harvests.id, idNum),
+            with: { plant: true, locations: true },
+        });
 
-        if (result.rows.length === 0) {
+        if (!result) {
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 
-        return NextResponse.json(result.rows[0]);
+        const response = {
+            ...result,
+            created_at: result.created_at?.toISOString() ?? '',
+            updated_at: result.updated_at?.toISOString() ?? '',
+            plant_name: result.plant?.name ?? '',
+            plant_category: (result.plant?.category ?? 'vegetable') as PlantCategory,
+            locations: result.locations.map(({ harvest_id: _hid, ...loc }) => ({
+                ...loc,
+                boxes: loc.boxes as number[] | null,
+            })),
+        } as unknown as HarvestWithDetails;
+
+        return NextResponse.json(response);
     } catch {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
@@ -108,47 +92,42 @@ export async function PUT(request: Request, { params }: RouteContext) {
         }
 
         const body = await request.json();
-        const { amount, harvest_note, is_new, is_done, locations } = body;
+        const { year, week, plant_id, amount, harvest_note, is_new, is_done, locations } = body;
 
-        const harvest = await withTransaction(async (client: PoolClient) => {
-            const result = await client.query(
-                `UPDATE harvests SET
-                 amount = COALESCE($1, amount),
-                 harvest_note = COALESCE($2, harvest_note),
-                 is_new = COALESCE($3, is_new),
-                 is_done = COALESCE($4, is_done),
-                 updated_at = NOW()
-                 WHERE id = $5
-                 RETURNING *`,
-                [
-                    amount ?? null,
-                    harvest_note ?? null,
-                    is_new ?? null,
-                    is_done ?? null,
-                    idNum,
-                ]
-            );
+        const harvest = await db.transaction(async (tx) => {
+            const [updated] = await tx
+                .update(harvests)
+                .set({
+                    ...(year !== undefined && { year }),
+                    ...(week !== undefined && { week }),
+                    ...(plant_id !== undefined && { plant_id }),
+                    ...(amount !== undefined && { amount }),
+                    ...(harvest_note !== undefined && { harvest_note }),
+                    ...(is_new !== undefined && { is_new }),
+                    ...(is_done !== undefined && { is_done }),
+                    updated_at: new Date(),
+                })
+                .where(eq(harvests.id, idNum))
+                .returning();
 
-            if (result.rows.length === 0) return null;
+            if (!updated) return null;
 
             if (Array.isArray(locations)) {
-                await client.query('DELETE FROM harvest_locations WHERE harvest_id = $1', [idNum]);
-                for (const loc of locations as LocationInput[]) {
-                    await client.query(
-                        `INSERT INTO harvest_locations (harvest_id, address, position, boxes, location_note)
-                         VALUES ($1, $2, $3, $4, $5)`,
-                        [
-                            idNum,
-                            loc.address,
-                            loc.position ?? null,
-                            loc.boxes ? JSON.stringify(loc.boxes) : null,
-                            loc.location_note ?? null,
-                        ]
+                await tx.delete(harvestLocations).where(eq(harvestLocations.harvest_id, idNum));
+                if (locations.length > 0) {
+                    await tx.insert(harvestLocations).values(
+                        locations.map((loc: LocationInput) => ({
+                            harvest_id: idNum,
+                            address: loc.address,
+                            position: loc.position ?? null,
+                            boxes: loc.boxes ?? null,
+                            location_note: loc.location_note ?? null,
+                        })),
                     );
                 }
             }
 
-            return result.rows[0];
+            return updated;
         });
 
         if (!harvest) {
@@ -169,8 +148,12 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
             return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
         }
 
-        const result = await query('DELETE FROM harvests WHERE id = $1 RETURNING id', [idNum]);
-        if (result.rows.length === 0) {
+        const [deleted] = await db
+            .delete(harvests)
+            .where(eq(harvests.id, idNum))
+            .returning({ id: harvests.id });
+
+        if (!deleted) {
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 

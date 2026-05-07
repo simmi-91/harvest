@@ -8,6 +8,19 @@ const config = {
     moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/$1',
     },
+    collectCoverageFrom: [
+        'app/api/**/*.ts',
+        'lib/**/*.ts',
+        '!lib/schema.ts',
+        '!**/*.d.ts',
+    ],
+    coverageThreshold: {
+        global: {
+            lines: 60,
+            functions: 60,
+            branches: 50,
+        },
+    },
 };
 
 module.exports = createJestConfig(config);

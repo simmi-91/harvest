@@ -35,7 +35,7 @@ export function HarvestCard({ harvest }: HarvestCardProps) {
                                 {loc.position ? `Tak ${loc.position}` : loc.address}
                             </span>
                             {loc.boxes && loc.boxes.length > 0 && (
-                                <span className="text-zinc-400"> – bed {loc.boxes.join(', ')}</span>
+                                <span className="text-zinc-400"> – kasse {loc.boxes.join(', ')}</span>
                             )}
                             {loc.location_note && (
                                 <span className="text-zinc-400"> ({loc.location_note})</span>

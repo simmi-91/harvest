@@ -1,7 +1,19 @@
-import { query } from '@/lib/db';
-import type { HarvestWithDetails } from '@/types';
+import { redirect } from 'next/navigation';
+import { and, asc, eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { harvests as harvestsTable, harvestLocations } from '@/lib/schema';
+import type { HarvestWithDetails, PlantCategory } from '@/types';
 import { FilterBar } from '@/components/harvest/FilterBar';
-import { HarvestCard } from '@/components/harvest/HarvestCard';
+import { HarvestTable } from '@/components/harvest/HarvestTable';
+
+function formatNorwegianDate(date: Date): string {
+    const str = new Intl.DateTimeFormat('nb-NO', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+    }).format(date);
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
 function getCurrentWeek(): { year: number; week: number } {
     const now = new Date();
@@ -13,46 +25,65 @@ function getCurrentWeek(): { year: number; week: number } {
     return { year: d.getUTCFullYear(), week };
 }
 
+async function getActiveFilters(year: number, week: number): Promise<{ addresses: string[]; positions: string[] }> {
+    const rows = await db
+        .selectDistinct({ address: harvestLocations.address, position: harvestLocations.position })
+        .from(harvestLocations)
+        .innerJoin(harvestsTable, eq(harvestLocations.harvest_id, harvestsTable.id))
+        .where(and(eq(harvestsTable.year, year), eq(harvestsTable.week, week)));
+
+    const addresses = [...new Set(rows.map((r) => r.address))];
+    const positions = [...new Set(rows.map((r) => r.position).filter((p): p is string => p !== null))];
+    return { addresses, positions };
+}
+
+async function getAvailableYears(currentYear: number): Promise<number[]> {
+    const rows = await db
+        .selectDistinct({ year: harvestsTable.year })
+        .from(harvestsTable)
+        .orderBy(asc(harvestsTable.year));
+    const years = rows.map((r) => r.year);
+    if (!years.includes(currentYear)) years.push(currentYear);
+    return years.sort((a, b) => a - b);
+}
+
+async function getAvailableWeeks(year: number, currentYear: number, currentWeek: number): Promise<number[]> {
+    const rows = await db
+        .selectDistinct({ week: harvestsTable.week })
+        .from(harvestsTable)
+        .where(eq(harvestsTable.year, year))
+        .orderBy(asc(harvestsTable.week));
+    const weeks = rows.map((r) => r.week);
+    if (year === currentYear && !weeks.includes(currentWeek)) weeks.push(currentWeek);
+    return weeks.sort((a, b) => a - b);
+}
+
 async function getHarvests(
     year: number,
     week: number,
     address: string | undefined,
-    position: string | undefined
+    position: string | undefined,
 ): Promise<HarvestWithDetails[]> {
-    const result = await query<HarvestWithDetails>(
-        `SELECT
-            h.id, h.plant_id, h.year, h.week, h.amount, h.harvest_note,
-            h.is_new, h.is_done, h.created_at, h.updated_at,
-            p.name AS plant_name, p.category AS plant_category,
-            COALESCE(
-                json_agg(
-                    json_build_object(
-                        'id', hl.id,
-                        'address', hl.address,
-                        'position', hl.position,
-                        'boxes', hl.boxes,
-                        'location_note', hl.location_note
-                    )
-                ) FILTER (WHERE hl.id IS NOT NULL),
-                '[]'::json
-            ) AS locations
-         FROM harvests h
-         JOIN plants p ON h.plant_id = p.id
-         LEFT JOIN harvest_locations hl ON hl.harvest_id = h.id
-         WHERE h.year = $1 AND h.week = $2
-           AND ($3::varchar IS NULL OR EXISTS (
-               SELECT 1 FROM harvest_locations hl2
-               WHERE hl2.harvest_id = h.id AND hl2.address = $3
-           ))
-           AND ($4::varchar IS NULL OR EXISTS (
-               SELECT 1 FROM harvest_locations hl2
-               WHERE hl2.harvest_id = h.id AND hl2.position = $4
-           ))
-         GROUP BY h.id, p.id, p.name, p.category
-         ORDER BY p.name`,
-        [year, week, address ?? null, position ?? null]
-    );
-    return result.rows;
+    let results = await db.query.harvests.findMany({
+        where: and(eq(harvestsTable.year, year), eq(harvestsTable.week, week)),
+        with: { plant: true, locations: true },
+    });
+
+    if (address) results = results.filter((h) => h.locations.some((l) => l.address === address));
+    if (position) results = results.filter((h) => h.locations.some((l) => l.position === position));
+    results.sort((a, b) => (a.plant?.name ?? '').localeCompare(b.plant?.name ?? ''));
+
+    return results.map((h) => ({
+        ...h,
+        created_at: h.created_at?.toISOString() ?? '',
+        updated_at: h.updated_at?.toISOString() ?? '',
+        plant_name: h.plant?.name ?? '',
+        plant_category: (h.plant?.category ?? 'vegetable') as PlantCategory,
+        locations: h.locations.map(({ harvest_id: _hid, ...loc }) => ({
+            ...loc,
+            boxes: loc.boxes as number[] | null,
+        })),
+    })) as HarvestWithDetails[];
 }
 
 type SearchParams = Promise<{
@@ -71,27 +102,53 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
     const address = params.address || undefined;
     const position = params.position || undefined;
 
-    let harvests: HarvestWithDetails[] = [];
+    let harvestData: HarvestWithDetails[] = [];
+    let availableYears: number[] = [current.year];
+    let availableWeeks: number[] = [current.week];
+    let activeAddresses: string[] = [];
+    let activePositions: string[] = [];
     let dbError = false;
     try {
-        harvests = await getHarvests(year, week, address, position);
+        const [h, years, weeks, active] = await Promise.all([
+            getHarvests(year, week, address, position),
+            getAvailableYears(current.year),
+            getAvailableWeeks(year, current.year, current.week),
+            getActiveFilters(year, week),
+        ]);
+        harvestData = h;
+        availableYears = years;
+        availableWeeks = weeks;
+        activeAddresses = active.addresses;
+        activePositions = active.positions;
     } catch {
         dbError = true;
     }
 
+    if (!dbError && availableWeeks.length > 0 && !availableWeeks.includes(week)) {
+        const nearest = availableWeeks.reduce((prev, curr) =>
+            Math.abs(curr - week) < Math.abs(prev - week) ? curr : prev,
+        );
+        const p = new URLSearchParams({ year: String(year), week: String(nearest) });
+        if (address) p.set('address', address);
+        if (position) p.set('position', position);
+        redirect(`/?${p.toString()}`);
+    }
+
+    const todayStr = formatNorwegianDate(new Date());
+
     return (
-        <main className="max-w-4xl mx-auto px-4 py-8 w-full">
-            <div className="flex flex-col gap-6">
+        <main className="max-w-4xl mx-auto px-4 py-2 sm:py-4 w-full">
+            <div className="flex flex-col gap-4">
                 <div>
-                    <h1 className="text-2xl font-semibold text-zinc-900">
-                        Høsteoversikt
+                    <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text)' }}>
+                        Høstemelding
                     </h1>
-                    <p className="text-zinc-500 text-sm mt-1">
-                        Uke {week}, {year}
+                    <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>
+                        {todayStr} · uke {current.week}
                     </p>
                 </div>
 
-                <FilterBar year={year} week={week} address={address} position={position} />
+                <FilterBar year={year} week={week} address={address} position={position} availableYears={availableYears} availableWeeks={availableWeeks} activeAddresses={activeAddresses} activePositions={activePositions} />
 
                 {dbError && (
                     <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -99,18 +156,14 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                     </div>
                 )}
 
-                {!dbError && harvests.length === 0 && (
+                {!dbError && harvestData.length === 0 && (
                     <p className="text-zinc-500 text-sm py-8 text-center">
                         Ingen høsting registrert for uke {week}, {year}.
                     </p>
                 )}
 
-                {!dbError && harvests.length > 0 && (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        {harvests.map((h) => (
-                            <HarvestCard key={h.id} harvest={h} />
-                        ))}
-                    </div>
+                {!dbError && harvestData.length > 0 && (
+                    <HarvestTable initialHarvests={harvestData} />
                 )}
             </div>
         </main>

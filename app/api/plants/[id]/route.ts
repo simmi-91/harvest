@@ -43,9 +43,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-
-type RouteContext = { params: Promise<{ id: string }> };
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { plants } from '@/lib/schema';
+import type { RouteContext } from '@/types';
 
 export async function GET(_request: Request, { params }: RouteContext) {
     try {
@@ -55,12 +56,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
             return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
         }
 
-        const result = await query('SELECT * FROM plants WHERE id = $1', [idNum]);
-        if (result.rows.length === 0) {
+        const plant = await db.query.plants.findFirst({ where: eq(plants.id, idNum) });
+        if (!plant) {
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 
-        return NextResponse.json(result.rows[0]);
+        return NextResponse.json(plant);
     } catch {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
@@ -77,24 +78,24 @@ export async function PUT(request: Request, { params }: RouteContext) {
         const body = await request.json();
         const { name, category, harvest_instructions, tips, latin_name } = body;
 
-        const result = await query(
-            `UPDATE plants SET
-             name = COALESCE($1, name),
-             category = COALESCE($2::plant_category, category),
-             harvest_instructions = COALESCE($3, harvest_instructions),
-             tips = COALESCE($4, tips),
-             latin_name = COALESCE($5, latin_name),
-             updated_at = NOW()
-             WHERE id = $6
-             RETURNING *`,
-            [name ?? null, category ?? null, harvest_instructions ?? null, tips ?? null, latin_name ?? null, idNum]
-        );
+        const [plant] = await db
+            .update(plants)
+            .set({
+                ...(name !== undefined && { name }),
+                ...(category !== undefined && { category }),
+                ...(harvest_instructions !== undefined && { harvest_instructions }),
+                ...(tips !== undefined && { tips }),
+                ...(latin_name !== undefined && { latin_name }),
+                updated_at: new Date(),
+            })
+            .where(eq(plants.id, idNum))
+            .returning();
 
-        if (result.rows.length === 0) {
+        if (!plant) {
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 
-        return NextResponse.json(result.rows[0]);
+        return NextResponse.json(plant);
     } catch {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
@@ -108,8 +109,12 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
             return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
         }
 
-        const result = await query('DELETE FROM plants WHERE id = $1 RETURNING id', [idNum]);
-        if (result.rows.length === 0) {
+        const [deleted] = await db
+            .delete(plants)
+            .where(eq(plants.id, idNum))
+            .returning({ id: plants.id });
+
+        if (!deleted) {
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 

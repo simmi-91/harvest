@@ -1,6 +1,6 @@
 -- Plant categories
 DO $$ BEGIN
-    CREATE TYPE plant_category AS ENUM ('vegetable', 'herb', 'flower', 'seed');
+    CREATE TYPE plant_category AS ENUM ('vegetable', 'greens', 'herb', 'flower', 'seed');
 EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS plants (
     harvest_instructions TEXT,
     tips TEXT,
     latin_name VARCHAR(100),
+    image_url VARCHAR(500),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
