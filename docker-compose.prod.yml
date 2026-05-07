@@ -1,0 +1,27 @@
+services:
+    postgres:
+        image: postgres:16
+        container_name: harvest-postgres
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: harvest
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: harvest
+        ports:
+            - "127.0.0.1:5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+        command: >
+            postgres
+            -c shared_buffers=64MB
+            -c max_connections=20
+            -c effective_cache_size=128MB
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U harvest"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+volumes:
+    postgres_data:

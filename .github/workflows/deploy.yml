@@ -1,0 +1,84 @@
+name: Deploy Harvest
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js app
+        run: npm run build
+
+      - name: Deploy build artifacts to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: ".next/,public/,package.json,package-lock.json,next.config.ts"
+          target: "/tmp/harvest-deploy"
+          rm: true
+
+      - name: Deploy infrastructure files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "docker-compose.prod.yml,scripts/init.sql"
+          target: "/tmp/harvest-infra"
+          rm: true
+
+      - name: Execute deployment on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # --- App ---
+            cd /var/www/harvest/
+            if [ -d "app_old" ]; then sudo rm -rf app_old; fi
+            if [ -d "app" ]; then sudo mv app app_old; fi
+            sudo mv /tmp/harvest-deploy app
+
+            # Restore .env.production (stored outside app/ so it survives rotations)
+            sudo cp /var/www/harvest/.env.production /var/www/harvest/app/.env.production
+
+            cd app
+            sudo npm ci --omit=dev
+            sudo chmod -R 755 /var/www/harvest/app
+
+            # --- Infrastructure ---
+            sudo mv /tmp/harvest-infra/docker-compose.prod.yml /var/www/harvest/docker-compose.prod.yml
+            sudo mkdir -p /var/www/harvest/scripts
+            sudo mv /tmp/harvest-infra/scripts/init.sql /var/www/harvest/scripts/init.sql
+
+            # --- Database ---
+            cd /var/www/harvest
+            docker compose -f docker-compose.prod.yml up -d
+
+            # --- Restart app ---
+            DEPLOY_USER=${{ secrets.DEPLOY_RUN_AS_USER }}
+            sudo -u $DEPLOY_USER pm2 restart harvest \
+              || sudo -u $DEPLOY_USER pm2 start npm --name harvest -- start -- -p 8030
+
+            echo "Deployment complete!"
+            sudo -u $DEPLOY_USER pm2 status
+            docker compose -f /var/www/harvest/docker-compose.prod.yml ps
