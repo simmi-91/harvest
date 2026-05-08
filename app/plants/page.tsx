@@ -18,7 +18,8 @@ export default async function PlantsPage() {
     let dbError = false;
     try {
         plants = await getPlants();
-    } catch {
+    } catch (e) {
+        console.error('[PLANTS ERROR]', e);
         dbError = true;
     }
 
