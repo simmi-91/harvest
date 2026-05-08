@@ -581,14 +581,20 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                                         {/* Amount */}
                                         <div className="px-3 py-1.5 text-sm text-zinc-800">
                                             {harvest.amount ?? (
-                                                <span className="text-zinc-400">–</span>
+                                                <span className="text-zinc-400">-</span>
                                             )}
                                         </div>
 
                                         {/* Locations + note */}
                                         <div
-                                            className="px-3 py-1.5 border-l border-dashed flex items-center"
+                                            className="px-3 py-1.5 border-l border-dashed flex flex-col justify-center"
                                             style={{ borderColor: "var(--color3)" }}>
+                                            {harvest.harvest_note && (
+                                                <div className="text-xs text-zinc-600 italic">
+                                                    {harvest.harvest_note}
+                                                </div>
+                                            )}
+
                                             {harvest.locations.length > 0 ? (
                                                 <ul className="space-y-0.5">
                                                     {harvest.locations.map((loc) => {
@@ -619,12 +625,7 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                                                     })}
                                                 </ul>
                                             ) : (
-                                                <span className="text-sm text-zinc-300">–</span>
-                                            )}
-                                            {harvest.harvest_note && (
-                                                <p className="text-xs text-zinc-600 italic mt-1">
-                                                    {harvest.harvest_note}
-                                                </p>
+                                                <span className="text-sm text-zinc-300">-</span>
                                             )}
                                         </div>
 
