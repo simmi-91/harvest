@@ -58,8 +58,8 @@ jobs:
             if [ -d "app" ]; then sudo mv app app_old; fi
             sudo mv /tmp/harvest-deploy app
 
-            # Restore .env.production (stored outside app/ so it survives rotations)
-            sudo cp /var/www/harvest/.env.production /var/www/harvest/app/.env.production
+            # Link .env.production (stored outside app/ so it survives rotations)
+            sudo ln -sf /var/www/harvest/.env.production /var/www/harvest/app/.env.production
 
             cd app
             sudo npm ci --omit=dev
