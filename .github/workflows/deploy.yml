@@ -77,7 +77,7 @@ jobs:
             # --- Restart app ---
             DEPLOY_USER=${{ secrets.DEPLOY_RUN_AS_USER }}
             sudo -u $DEPLOY_USER pm2 restart harvest \
-              || sudo -u $DEPLOY_USER pm2 start npm --name harvest -- start -- -p 8030
+              || sudo -u $DEPLOY_USER pm2 start npm --name harvest --cwd /var/www/harvest/app -- start -- -p 8030
 
             echo "Deployment complete!"
             sudo -u $DEPLOY_USER pm2 status
