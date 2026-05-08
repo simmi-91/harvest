@@ -74,6 +74,11 @@ jobs:
             cd /var/www/harvest
             docker compose -f docker-compose.prod.yml up -d
 
+            echo "Waiting for database to be ready..."
+            until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U harvest; do
+              sleep 2
+            done
+
             # --- Restart app ---
             DEPLOY_USER=${{ secrets.DEPLOY_RUN_AS_USER }}
             sudo -u $DEPLOY_USER pm2 restart harvest \
