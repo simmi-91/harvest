@@ -73,7 +73,7 @@ export async function GET(request: Request) {
         });
 
         if (address) results = results.filter((h) => h.locations.some((l) => l.address === address));
-        if (position) results = results.filter((h) => h.locations.some((l) => l.position === position));
+        if (position) results = results.filter((h) => h.locations.some((l) => l.position === position || l.position === null));
         results.sort((a, b) => (a.plant?.name ?? '').localeCompare(b.plant?.name ?? ''));
 
         const response = results.map((h) => ({
