@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { asc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { plants as plantsTable } from '@/lib/schema';
@@ -18,8 +20,7 @@ export default async function PlantsPage() {
     let dbError = false;
     try {
         plants = await getPlants();
-    } catch (e) {
-        console.error('[PLANTS ERROR]', e);
+    } catch {
         dbError = true;
     }
 
