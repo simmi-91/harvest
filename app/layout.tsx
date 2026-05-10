@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Navigation } from "@/components/layout/Navigation";
+import { ScrollToTop } from "@/components/shared/ScrollToTop";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,9 +24,10 @@ export default function RootLayout({
       lang="no"
       className={`${geistSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col pb-24">
         <Navigation />
         {children}
+        <ScrollToTop />
       </body>
     </html>
   );

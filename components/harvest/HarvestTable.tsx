@@ -545,9 +545,9 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                                                     );
                                                 })}
                                                 {harvest.harvest_note && (
-                                                    <span className="italic text-zinc-600">
+                                                    <div className="italic text-zinc-600">
                                                         {harvest.harvest_note}
-                                                    </span>
+                                                    </div>
                                                 )}
                                             </div>
                                         )}
@@ -589,12 +589,6 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                                         <div
                                             className="px-3 py-1.5 border-l border-dashed flex flex-col justify-center"
                                             style={{ borderColor: "var(--color3)" }}>
-                                            {harvest.harvest_note && (
-                                                <div className="text-xs text-zinc-600 italic">
-                                                    {harvest.harvest_note}
-                                                </div>
-                                            )}
-
                                             {harvest.locations.length > 0 ? (
                                                 <ul className="space-y-0.5">
                                                     {harvest.locations.map((loc) => {
@@ -626,6 +620,12 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                                                 </ul>
                                             ) : (
                                                 <span className="text-sm text-zinc-300">-</span>
+                                            )}
+
+                                            {harvest.harvest_note && (
+                                                <div className="text-xs text-zinc-600 italic">
+                                                    {harvest.harvest_note}
+                                                </div>
                                             )}
                                         </div>
 
