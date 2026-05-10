@@ -439,7 +439,7 @@ export default function UploadPage() {
                             Last opp høstemelding
                         </h1>
                         <p className="text-zinc-700 text-sm mt-1">
-                            Last opp PDF for ukentlig høsteing. Gemini AI analyserer innholdet
+                            Last opp PDF for ukentlig høsting. Gemini AI analyserer innholdet
                             automatisk.
                         </p>
                     </div>
