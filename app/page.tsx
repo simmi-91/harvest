@@ -63,6 +63,7 @@ async function getHarvests(
     week: number,
     address: string | undefined,
     position: string | undefined,
+    sort: string,
 ): Promise<HarvestWithDetails[]> {
     let results = await db.query.harvests.findMany({
         where: and(eq(harvestsTable.year, year), eq(harvestsTable.week, week)),
@@ -71,7 +72,28 @@ async function getHarvests(
 
     if (address) results = results.filter((h) => h.locations.some((l) => l.address === address));
     if (position) results = results.filter((h) => h.locations.some((l) => l.position === position || l.position === null));
-    results.sort((a, b) => (a.plant?.name ?? '').localeCompare(b.plant?.name ?? ''));
+
+    function minBox(h: typeof results[number]): number {
+        const locs = position
+            ? h.locations.filter((l) => l.position === position)
+            : h.locations;
+        const boxes = locs.flatMap((l) => (l.boxes as number[] | null) ?? []);
+        return boxes.length > 0 ? Math.min(...boxes) : Infinity;
+    }
+
+    results.sort((a, b) => {
+        if (sort === 'navn') {
+            return (a.plant?.name ?? '').localeCompare(b.plant?.name ?? '');
+        }
+        if (sort === 'kategori') {
+            const catCmp = (a.plant?.category ?? '').localeCompare(b.plant?.category ?? '');
+            if (catCmp !== 0) return catCmp;
+            return (a.plant?.name ?? '').localeCompare(b.plant?.name ?? '');
+        }
+        const diff = minBox(a) - minBox(b);
+        if (diff !== 0) return diff;
+        return (a.plant?.name ?? '').localeCompare(b.plant?.name ?? '');
+    });
 
     return results.map((h) => ({
         ...h,
@@ -91,6 +113,7 @@ type SearchParams = Promise<{
     week?: string;
     address?: string;
     position?: string;
+    sort?: string;
 }>;
 
 export default async function Home({ searchParams }: { searchParams: SearchParams }) {
@@ -101,6 +124,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
     const week = params.week ? parseInt(params.week) : current.week;
     const address = params.address || undefined;
     const position = params.position || undefined;
+    const sort = params.sort || 'kasse';
 
     let harvestData: HarvestWithDetails[] = [];
     let availableYears: number[] = [current.year];
@@ -110,7 +134,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
     let dbError = false;
     try {
         const [h, years, weeks, active] = await Promise.all([
-            getHarvests(year, week, address, position),
+            getHarvests(year, week, address, position, sort),
             getAvailableYears(current.year),
             getAvailableWeeks(year, current.year, current.week),
             getActiveFilters(year, week),
@@ -131,6 +155,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         const p = new URLSearchParams({ year: String(year), week: String(nearest) });
         if (address) p.set('address', address);
         if (position) p.set('position', position);
+        if (sort !== 'kasse') p.set('sort', sort);
         redirect(`/?${p.toString()}`);
     }
 
@@ -148,7 +173,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                     </p>
                 </div>
 
-                <FilterBar year={year} week={week} address={address} position={position} availableYears={availableYears} availableWeeks={availableWeeks} activeAddresses={activeAddresses} activePositions={activePositions} />
+                <FilterBar year={year} week={week} address={address} position={position} sort={sort} availableYears={availableYears} availableWeeks={availableWeeks} activeAddresses={activeAddresses} activePositions={activePositions} />
 
                 {dbError && (
                     <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">

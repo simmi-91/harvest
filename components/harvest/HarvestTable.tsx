@@ -311,6 +311,7 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
     const [editingId, setEditingId] = useState<number | null>(null);
     const [infoPlantId, setInfoPlantId] = useState<number | null>(null);
     const [plants, setPlants] = useState<PlantOption[]>([]);
+    const [compact, setCompact] = useState(false);
 
     // Sync done state when initialHarvests changes (e.g. page re-render)
     useEffect(() => {
@@ -436,7 +437,15 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                     className="sm:hidden grid grid-cols-[1fr_5rem] px-3 py-2 text-xs font-semibold uppercase tracking-wide"
                     style={{ backgroundColor: "var(--color3)", color: "var(--text)" }}>
                     <div>Plante</div>
-                    <div className="text-right">Høstet</div>
+                    <div className="flex items-center justify-end gap-2">
+                        <button
+                            onClick={() => setCompact((c) => !c)}
+                            title={compact ? "Vis alle rader" : "Minimer høstede"}
+                            className={`rounded px-1.5 py-0.5 text-xs border transition-colors ${compact ? "bg-zinc-700 text-white border-zinc-600" : "bg-white/30 border-transparent hover:bg-white/50"}`}>
+                            ≡
+                        </button>
+                        Høstet
+                    </div>
                 </div>
                 {/* Desktop header */}
                 <div
@@ -449,7 +458,15 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                     <div>Plante</div>
                     <div>Mengde</div>
                     <div>Steder</div>
-                    <div className="text-center">Høstet</div>
+                    <div className="flex items-center justify-center gap-2">
+                        <button
+                            onClick={() => setCompact((c) => !c)}
+                            title={compact ? "Vis alle rader" : "Minimer høstede"}
+                            className={`rounded px-1.5 py-0.5 text-xs border transition-colors ${compact ? "bg-zinc-700 text-white border-zinc-600" : "bg-white/30 border-transparent hover:bg-white/50"}`}>
+                            ≡
+                        </button>
+                        Høstet
+                    </div>
                 </div>
 
                 {harvests.map((harvest) => {
@@ -462,7 +479,12 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                             key={harvest.id}
                             className="border-t-2"
                             style={{ borderColor: "var(--color3)" }}>
-                            {isEditing ? (
+                            {compact && isDone && !isEditing ? (
+                                <div className="px-3 py-0.5 flex items-center gap-1.5">
+                                    <PlantIcon category={harvest.plant_category} size={12} className="shrink-0 text-zinc-300" />
+                                    <span className="text-xs text-zinc-400">{harvest.plant_name}</span>
+                                </div>
+                            ) : isEditing ? (
                                 <InlineEditForm
                                     harvest={harvest}
                                     plants={plants}

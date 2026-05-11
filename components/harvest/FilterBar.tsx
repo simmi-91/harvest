@@ -23,13 +23,14 @@ interface FilterBarProps {
     week: number;
     address?: string;
     position?: string;
+    sort: string;
     availableYears: number[];
     availableWeeks: number[];
     activeAddresses: string[];
     activePositions: string[];
 }
 
-export function FilterBar({ year, week, address, position, availableYears, availableWeeks, activeAddresses, activePositions }: FilterBarProps) {
+export function FilterBar({ year, week, address, position, sort, availableYears, availableWeeks, activeAddresses, activePositions }: FilterBarProps) {
     const router = useRouter();
 
     // Restore saved filters when landing on / without params
@@ -46,6 +47,7 @@ export function FilterBar({ year, week, address, position, availableYears, avail
             week: String(week),
             address,
             position,
+            sort: sort !== 'kasse' ? sort : undefined,
         };
         const merged = { ...current, ...updates };
         Object.entries(merged).forEach(([k, v]) => {
@@ -63,8 +65,8 @@ export function FilterBar({ year, week, address, position, availableYears, avail
 
     return (
         <div className="flex flex-col gap-2.5">
-            {/* Year + Week */}
-            <div className="flex gap-2">
+            {/* Year + Week + Sort */}
+            <div className="flex gap-2 flex-wrap">
                 <select
                     value={String(year)}
                     onChange={(e) => navigate({ year: e.target.value })}
@@ -82,6 +84,18 @@ export function FilterBar({ year, week, address, position, availableYears, avail
                         <option key={w} value={w}>Uke {w}</option>
                     ))}
                 </select>
+
+                <label className="flex items-center gap-1.5">
+                    <span className="text-sm text-zinc-500">Sorter:</span>
+                    <select
+                        value={sort}
+                        onChange={(e) => navigate({ sort: e.target.value !== 'kasse' ? e.target.value : undefined })}
+                        className={selectClass}>
+                        <option value="kasse">Kasse #</option>
+                        <option value="navn">Navn</option>
+                        <option value="kategori">Kategori</option>
+                    </select>
+                </label>
             </div>
 
             {/* Address pills */}
