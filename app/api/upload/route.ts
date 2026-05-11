@@ -18,6 +18,16 @@ import type {
     ParseResponse,
 } from '@/types';
 
+function normalizeFractions(text: string | null): string | null {
+    if (!text) return text;
+    return text
+        .replace(/\b1\/4\b/g, '¼')
+        .replace(/\b1\/2\b/g, '½')
+        .replace(/\b3\/4\b/g, '¾')
+        .replace(/\b1\/3\b/g, '⅓')
+        .replace(/\b2\/3\b/g, '⅔');
+}
+
 export async function POST(req: Request) {
     let formData: FormData;
     try {
@@ -123,6 +133,9 @@ export async function POST(req: Request) {
 
     const resolvedPlantInfo: ResolvedPlantInfo[] = [];
     for (const info of parsed.plant_info) {
+        info.harvest_instructions = normalizeFractions(info.harvest_instructions);
+        info.tips = normalizeFractions(info.tips);
+
         const match = matchPlant(info.name, plants, plantAliases);
 
         if (match) {
