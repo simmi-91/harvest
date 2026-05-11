@@ -408,12 +408,12 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                             )}
 
                             {/* Add / change plant */}
-                            {(!entry.plant_id || entry.uncertain) && openAddForm !== i && (
+                            {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm !== i && (
                                 <button onClick={() => setOpenAddForm(i)} className="text-xs text-left text-blue-600 hover:text-blue-800">
                                     {entry.plant_id ? 'endre plante' : '+ Legg til plante'}
                                 </button>
                             )}
-                            {(!entry.plant_id || entry.uncertain) && openAddForm === i && (
+                            {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm === i && (
                                 <SelectOrAddPlant
                                     name={entry.plant_name}
                                     onAdd={(id, name) => { onAddPlant(i, id, name); setOpenAddForm(null); }}
@@ -468,12 +468,12 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                                             {entry.raw_plant_name !== entry.plant_name && (
                                                 <span className="text-xs text-zinc-400">PDF: {entry.raw_plant_name}</span>
                                             )}
-                                            {(!entry.plant_id || entry.uncertain) && openAddForm !== i && (
+                                            {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm !== i && (
                                                 <button onClick={() => setOpenAddForm(i)} className="text-xs text-left text-blue-600 hover:text-blue-800 mt-0.5">
                                                     {entry.plant_id ? 'endre plante' : '+ Legg til plante'}
                                                 </button>
                                             )}
-                                            {(!entry.plant_id || entry.uncertain) && openAddForm === i && (
+                                            {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm === i && (
                                                 <SelectOrAddPlant
                                                     name={entry.plant_name}
                                                     onAdd={(id, name) => { onAddPlant(i, id, name); setOpenAddForm(null); }}

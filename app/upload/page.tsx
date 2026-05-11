@@ -158,6 +158,7 @@ export default function UploadPage() {
         failed: number;
     } | null>(null);
     const [confirmSave, setConfirmSave] = useState(false);
+    const autoSkippedRef = useRef(false);
 
     // Restore from cache on mount
     useEffect(() => {
@@ -171,6 +172,41 @@ export default function UploadPage() {
             setStep(cached.step ?? (cached.parsed.plant_info.length > 0 ? "plant-review" : "preview"));
         }
     }, []);
+
+    // Auto-skip entries that already exist in the DB for the selected year/week(s)
+    useEffect(() => {
+        if (step !== 'preview' || !parsed || autoSkippedRef.current) return;
+        autoSkippedRef.current = true;
+
+        async function autoSkipExisting() {
+            if (!parsed) return;
+            const perWeek = await Promise.all(
+                parsed.weeks.map(async (week) => {
+                    const res = await fetch(`/api/harvests?year=${parsed.year}&week=${week}`);
+                    if (!res.ok) return new Set<number>();
+                    const rows = (await res.json()) as { plant_id: number }[];
+                    return new Set(rows.map((h) => h.plant_id));
+                })
+            );
+            // Only skip if the plant exists in ALL weeks (nothing new would be saved)
+            const existsInAll = new Set<number>();
+            if (perWeek.length > 0) {
+                for (const id of perWeek[0]) {
+                    if (perWeek.every((s) => s.has(id))) existsInAll.add(id);
+                }
+            }
+            if (existsInAll.size === 0) return;
+            setSkipped((prev) => {
+                const next = new Set(prev);
+                parsed.entries.forEach((entry, i) => {
+                    if (entry.plant_id && existsInAll.has(entry.plant_id)) next.add(i);
+                });
+                return next;
+            });
+        }
+
+        autoSkipExisting();
+    }, [step, parsed]);
 
     // Persist state whenever it changes
     useEffect(() => {
@@ -238,6 +274,7 @@ export default function UploadPage() {
 
     async function handleFile(file: File) {
         lastFileRef.current = file;
+        autoSkippedRef.current = false;
         setError(null);
         setLoading(true);
         startLoadingMessages();
