@@ -4,7 +4,7 @@ This file provides context for Claude Code when working on this project.
 
 Ask me questions until you are 95% confident you understand exactly what I need. Don't make any assumptions.
 
-Never run `git commit` unless explicitly asked to.
+Never run `git commit` unless the current message explicitly contains "commit" or "commit dette". A previous message saying "commit" does not apply to later fixes.
 
 ## Project Overview
 
