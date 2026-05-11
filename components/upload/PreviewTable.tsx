@@ -348,6 +348,9 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         <PlantBadge entry={entry} />
                                         <span className="font-medium text-zinc-900 text-sm">{entry.plant_name}</span>
+                                        {entry.category && (
+                                            <span className="text-xs text-zinc-400">{PLANT_CATEGORIES.find(c => c.value === entry.category)?.label}</span>
+                                        )}
                                         {entry.is_new && (
                                             <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Ny</span>
                                         )}
@@ -432,6 +435,9 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                                         <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span className="font-medium text-zinc-900">{entry.plant_name}</span>
+                                                {entry.category && (
+                                                    <span className="text-xs text-zinc-400">{PLANT_CATEGORIES.find(c => c.value === entry.category)?.label}</span>
+                                                )}
                                                 {entry.is_new && (
                                                     <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Ny</span>
                                                 )}
@@ -455,7 +461,7 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                                     </td>
 
                                     {/* Amount - editable */}
-                                    <td className={`px-3 py-2 min-w-[80px] align-top ${!isSkipped && !!entry.plant_id && displayAmount === null ? 'bg-amber-50' : ''}`}>
+                                    <td className={`px-3 py-2 min-w-[140px] align-top ${!isSkipped && !!entry.plant_id && displayAmount === null ? 'bg-amber-50' : ''}`}>
                                         <EditableCell value={displayAmount} original={entry.amount} emptyWarning={!isSkipped && !!entry.plant_id && displayAmount === null} onSave={(v) => onEdit(i, 'amount', v)} />
                                     </td>
 
