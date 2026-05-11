@@ -1,4 +1,4 @@
-import type { Plant, PlantAlias } from '@/types';
+import type { Plant, PlantAlias, PlantCategory } from '@/types';
 
 function levenshtein(a: string, b: string): number {
     const m = a.length;
@@ -26,16 +26,32 @@ export interface MatchResult {
     matched_alias: string | null;
 }
 
+function preferByCategory<T extends { category: PlantCategory }>(
+    candidates: T[],
+    category: PlantCategory | null | undefined,
+): { item: T; certain: boolean } {
+    if (candidates.length === 1) return { item: candidates[0], certain: true };
+    if (category) {
+        const match = candidates.find((c) => c.category === category);
+        if (match) return { item: match, certain: true };
+    }
+    return { item: candidates[0], certain: false };
+}
+
 export function matchPlant(
     rawName: string,
     plants: Plant[],
     aliases: PlantAlias[],
+    category?: PlantCategory | null,
 ): MatchResult | null {
     const needle = rawName.trim().toLowerCase();
 
     // 1. Exact match on plant name
-    const exactPlant = plants.find((p) => p.name.toLowerCase() === needle);
-    if (exactPlant) return { plant_id: exactPlant.id, plant_name: exactPlant.name, uncertain: false, matched_alias: null };
+    const exactPlants = plants.filter((p) => p.name.toLowerCase() === needle);
+    if (exactPlants.length > 0) {
+        const { item, certain } = preferByCategory(exactPlants, category);
+        return { plant_id: item.id, plant_name: item.name, uncertain: !certain, matched_alias: null };
+    }
 
     // 2. Exact match on alias
     const exactAlias = aliases.find((a) => a.alias.toLowerCase() === needle);
@@ -44,7 +60,7 @@ export function matchPlant(
         if (plant) return { plant_id: plant.id, plant_name: plant.name, uncertain: false, matched_alias: exactAlias.alias };
     }
 
-    // 3. Fuzzy match on plant names and aliases
+    // 3. Fuzzy match on plant names and aliases — prefer category on equal scores
     let bestScore = Infinity;
     let bestPlant: Plant | null = null;
     let bestAlias: string | null = null;
@@ -53,7 +69,9 @@ export function matchPlant(
         const haystack = plant.name.toLowerCase();
         const dist = levenshtein(needle, haystack);
         const score = dist / Math.max(needle.length, haystack.length);
-        if (score < bestScore) {
+        const beats = score < bestScore ||
+            (score === bestScore && category && plant.category === category && bestPlant?.category !== category);
+        if (beats) {
             bestScore = score;
             bestPlant = plant;
             bestAlias = null;

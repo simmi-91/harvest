@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     const plantById = new Map(plants.map((p) => [p.id, p]));
 
     const resolvedEntries: ResolvedEntry[] = parsed.harvest_entries.map((entry: GeminiEntry) => {
-        const plantMatch = matchPlant(stripPlantNameAffixes(entry.plant_name), plants, plantAliases);
+        const plantMatch = matchPlant(stripPlantNameAffixes(entry.plant_name), plants, plantAliases, entry.category);
 
         const resolvedLocations: ResolvedLocation[] = entry.locations.map(
             (loc: GeminiLocation) => {
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
         info.harvest_instructions = normalizeFractions(info.harvest_instructions);
         info.tips = normalizeFractions(info.tips);
 
-        const match = matchPlant(stripPlantNameAffixes(info.name), plants, plantAliases);
+        const match = matchPlant(stripPlantNameAffixes(info.name), plants, plantAliases, info.category);
 
         if (match) {
             const plant = plantById.get(match.plant_id);
