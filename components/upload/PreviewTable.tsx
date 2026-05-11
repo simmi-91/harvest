@@ -218,7 +218,7 @@ function LocationCell({ locations, entryIndex, onEditLocations }: {
 
 // ── Plant lookup cache ────────────────────────────────────────────────────────
 
-type PlantOption = { id: number; name: string };
+type PlantOption = { id: number; name: string; category: PlantCategory };
 let _plantsCache: PlantOption[] | null = null;
 async function fetchPlants(): Promise<PlantOption[]> {
     if (_plantsCache) return _plantsCache;
@@ -281,7 +281,7 @@ function SelectOrAddPlant({ name, onAdd, onCancel }: {
                                         onClick={() => onAdd(p.id, p.name)}
                                         className="w-full text-left px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50"
                                     >
-                                        {p.name}
+                                        <span className="text-zinc-400">[{PLANT_CATEGORIES.find(c => c.value === p.category)?.label}]</span>{' '}{p.name}
                                     </button>
                                 </li>
                             ))}

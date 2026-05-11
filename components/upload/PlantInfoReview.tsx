@@ -184,6 +184,24 @@ export function PlantInfoReview({ plantInfo, edits, onEditChange, saving, onConf
     const [aliasStates, setAliasStates] = useState<Map<number, AliasState>>(new Map());
     const [openReassign, setOpenReassign] = useState<number | null>(null);
 
+    // Auto-skip entries where all changed fields have < 5% diff
+    useEffect(() => {
+        plantInfo.forEach((info, i) => {
+            if (info.is_new || !info.has_changes) return;
+            if (edits.get(i)?.skip !== undefined) return; // user has set this explicitly
+            const ratios: number[] = [];
+            if (info.new_latin_name !== null && info.new_latin_name !== info.existing_latin_name && info.existing_latin_name)
+                ratios.push(wordDiffRatio(info.existing_latin_name, info.new_latin_name));
+            if (info.new_harvest_instructions !== null && info.new_harvest_instructions !== info.existing_harvest_instructions && info.existing_harvest_instructions)
+                ratios.push(wordDiffRatio(info.existing_harvest_instructions, info.new_harvest_instructions));
+            if (info.new_tips !== null && info.new_tips !== info.existing_tips && info.existing_tips)
+                ratios.push(wordDiffRatio(info.existing_tips, info.new_tips));
+            if (ratios.length > 0 && Math.max(...ratios) < 0.05)
+                onEditChange(i, { skip: true });
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [plantInfo]);
+
     function setEdit(i: number, patch: Partial<PlantEdits>) {
         onEditChange(i, patch);
     }
