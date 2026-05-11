@@ -6,12 +6,6 @@ import { PreviewTable, type EntryEdits } from "@/components/upload/PreviewTable"
 import { PlantInfoReview, type PlantEdits } from "@/components/upload/PlantInfoReview";
 import type { ParseResponse, ResolvedLocation, PlantCategory, Plant } from "@/types";
 
-function normalizeLatin(s: string | null | undefined): string | null {
-    if (!s) return s ?? null;
-    const trimmed = s.trim();
-    if (!trimmed) return null;
-    return trimmed.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
-}
 
 function parseApiError(raw: string): { summary: string; details: string | null } {
     const statusMatch = raw.match(/\[(\d{3}\s+[^\]]+)\]/);
@@ -338,14 +332,18 @@ export default function UploadPage() {
             const edit = plantEdits.get(i) ?? {};
             if (edit.skip) continue;
 
-            const latin_name = normalizeLatin(
-                edit.latin_name !== undefined ? edit.latin_name : info.new_latin_name
-            );
+            const latin_name =
+                edit.latin_name !== undefined
+                    ? edit.latin_name
+                    : info.new_latin_name ?? undefined;
             const harvest_instructions =
                 edit.harvest_instructions !== undefined
                     ? edit.harvest_instructions
-                    : info.new_harvest_instructions;
-            const tips = edit.tips !== undefined ? edit.tips : info.new_tips;
+                    : info.new_harvest_instructions ?? undefined;
+            const tips =
+                edit.tips !== undefined
+                    ? edit.tips
+                    : info.new_tips ?? undefined;
 
             if (info.is_new) {
                 const category: PlantCategory = edit.category ?? info.new_category ?? "vegetable";
