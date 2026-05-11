@@ -142,11 +142,11 @@ function PlantSearch({ onSelect, onCancel }: {
     onSelect: (id: number, name: string) => void;
     onCancel: () => void;
 }) {
-    const [plants, setPlants] = useState<{ id: number; name: string }[]>([]);
+    const [plants, setPlants] = useState<{ id: number; name: string; category: PlantCategory }[]>([]);
     const [query, setQuery] = useState('');
 
     useEffect(() => {
-        fetch('/api/plants').then(r => r.json()).then(data => setPlants(data as { id: number; name: string }[]));
+        fetch('/api/plants').then(r => r.json()).then(data => setPlants(data as { id: number; name: string; category: PlantCategory }[]));
     }, []);
 
     const filtered = query.trim()
@@ -169,7 +169,7 @@ function PlantSearch({ onSelect, onCancel }: {
                         <li key={p.id}>
                             <button type="button" onClick={() => onSelect(p.id, p.name)}
                                 className="w-full text-left px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50">
-                                {p.name}
+                                <span className="text-zinc-400">[{PLANT_CATEGORIES.find(c => c.value === p.category)?.label}]</span>{' '}{p.name}
                             </button>
                         </li>
                     ))}
@@ -286,13 +286,20 @@ export function PlantInfoReview({ plantInfo, edits, onEditChange, saving, onConf
                                         )
                                     )}
                                     {showReassign && openReassign !== i && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setOpenReassign(i)}
-                                            className="text-xs text-zinc-400 hover:text-zinc-700 underline"
-                                        >
-                                            koble til annen plante
-                                        </button>
+                                        <>
+                                            {info.existing_category && (
+                                                <span className="text-xs text-zinc-400">
+                                                    [{PLANT_CATEGORIES.find(c => c.value === info.existing_category)?.label}]
+                                                </span>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => setOpenReassign(i)}
+                                                className="text-xs text-zinc-400 hover:text-zinc-700 underline"
+                                            >
+                                                koble til annen plante
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                                 <button
