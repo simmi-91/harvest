@@ -522,17 +522,31 @@ export default function UploadPage() {
                                 Last opp ny
                             </button>
                             {confirmSave ? (
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-sm text-amber-700">
-                                        {missingAmountCount} innslag mangler mengde
-                                    </span>
+                                <div className="flex items-center gap-2 flex-wrap justify-end">
+                                    <div className="text-sm text-right">
+                                        <span className="text-zinc-700">
+                                            Lagre {saveableCount} innslag for{" "}
+                                            <strong>
+                                                {parsed.weeks.length === 1
+                                                    ? `uke ${parsed.weeks[0]}`
+                                                    : `uke ${parsed.weeks.join("+")}`}
+                                                , {parsed.year}
+                                            </strong>
+                                            ?
+                                        </span>
+                                        {missingAmountCount > 0 && (
+                                            <span className="block text-amber-700 text-xs mt-0.5">
+                                                {missingAmountCount} innslag mangler mengde
+                                            </span>
+                                        )}
+                                    </div>
                                     <button
                                         onClick={() => {
                                             setConfirmSave(false);
                                             handleSave();
                                         }}
                                         className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700">
-                                        Lagre uansett
+                                        Ja, lagre
                                     </button>
                                     <button
                                         onClick={() => setConfirmSave(false)}
@@ -542,9 +556,7 @@ export default function UploadPage() {
                                 </div>
                             ) : (
                                 <button
-                                    onClick={() =>
-                                        missingAmountCount > 0 ? setConfirmSave(true) : handleSave()
-                                    }
+                                    onClick={() => setConfirmSave(true)}
                                     disabled={saveableCount === 0}
                                     className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed">
                                     Lagre {saveableCount}{" "}

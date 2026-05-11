@@ -5,6 +5,94 @@ import { Sparkles, RotateCcw } from 'lucide-react';
 import { PLANT_CATEGORIES } from '@/lib/plantCategories';
 import type { PlantCategory, ResolvedPlantInfo } from '@/types';
 
+type DiffOp = 'equal' | 'delete' | 'insert';
+interface DiffPart { type: DiffOp; text: string }
+
+function lcsDiff(a: string[], b: string[]): Array<{ type: DiffOp; value: string }> {
+    const m = a.length, n = b.length;
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i++)
+        for (let j = 1; j <= n; j++)
+            dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    const result: Array<{ type: DiffOp; value: string }> = [];
+    let i = m, j = n;
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+            result.unshift({ type: 'equal', value: a[i - 1] }); i--; j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+            result.unshift({ type: 'insert', value: b[j - 1] }); j--;
+        } else {
+            result.unshift({ type: 'delete', value: a[i - 1] }); i--;
+        }
+    }
+    return result;
+}
+
+function computeCharDiff(oldText: string, newText: string): DiffPart[] {
+    const raw = lcsDiff(oldText.split(/(\s+)/), newText.split(/(\s+)/));
+    const parts: DiffPart[] = [];
+    for (let i = 0; i < raw.length; i++) {
+        const curr = raw[i];
+        const next = raw[i + 1];
+        if (curr.type === 'delete' && next?.type === 'insert' && !/^\s+$/.test(curr.value) && !/^\s+$/.test(next.value)) {
+            for (const c of lcsDiff(curr.value.split(''), next.value.split('')))
+                parts.push({ type: c.type, text: c.value });
+            i++;
+        } else {
+            parts.push({ type: curr.type, text: curr.value });
+        }
+    }
+    return parts;
+}
+
+function computeWordDiff(oldText: string, newText: string): DiffPart[] {
+    return lcsDiff(oldText.split(/(\s+)/), newText.split(/(\s+)/))
+        .map(op => ({ type: op.type, text: op.value }));
+}
+
+function wordDiffRatio(oldText: string, newText: string): number {
+    const a = oldText.trim().split(/\s+/);
+    const b = newText.trim().split(/\s+/);
+    const equalCount = lcsDiff(a, b).filter(o => o.type === 'equal').length;
+    return 1 - (2 * equalCount) / (a.length + b.length);
+}
+
+function DiffSpans({ parts }: { parts: DiffPart[] }) {
+    return (
+        <span className="whitespace-pre-wrap break-words">
+            {parts.map((part, i) =>
+                part.type === 'delete' ? (
+                    <span key={i} className="bg-red-100 text-red-600 line-through">{part.text}</span>
+                ) : part.type === 'insert' ? (
+                    <span key={i} className="bg-green-100 text-green-700">{part.text}</span>
+                ) : (
+                    <span key={i}>{part.text}</span>
+                )
+            )}
+        </span>
+    );
+}
+
+function TextDiff({ oldText, newText }: { oldText: string; newText: string }) {
+    const ratio = wordDiffRatio(oldText, newText);
+    if (ratio > 0.55) {
+        return (
+            <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 rounded bg-red-50 border border-red-100 px-2 py-1 text-red-700">
+                    <RotateCcw size={13} className="text-zinc-900 shrink-0" />
+                    <span className="whitespace-pre-wrap">{oldText}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded bg-green-50 border border-green-100 px-2 py-1 text-green-700">
+                    <Sparkles size={13} className="text-zinc-900 shrink-0" />
+                    <span className="whitespace-pre-wrap">{newText}</span>
+                </div>
+            </div>
+        );
+    }
+    const parts = ratio <= 0.20 ? computeCharDiff(oldText, newText) : computeWordDiff(oldText, newText);
+    return <DiffSpans parts={parts} />;
+}
+
 export type PlantEdits = {
     latin_name?: string | null;
     harvest_instructions?: string | null;
@@ -127,7 +215,7 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                     const latinNameChanged = !info.is_new && info.new_latin_name !== null && info.new_latin_name !== info.existing_latin_name;
                     const instructionsChanged = !info.is_new && info.new_harvest_instructions !== null && info.new_harvest_instructions !== info.existing_harvest_instructions;
                     const tipsChanged = !info.is_new && info.new_tips !== null && info.new_tips !== info.existing_tips;
-                    const showAliasBtn = !info.is_new && info.plant_id !== null && info.raw_name !== info.plant_name;
+                    const showAliasBtn = !info.is_new && info.plant_id !== null && info.raw_name !== info.plant_name && info.uncertain;
                     const aliasState = aliasStates.get(i);
 
                     return (
@@ -189,10 +277,10 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                                                 <FieldActionButton icon={RotateCcw} label="Eksisterende" onClick={() => resetField(i, 'latin_name', info.existing_latin_name ?? null)} />
                                             </div>
                                         )}
-                                        {latinNameChanged && info.existing_latin_name && (
+                                        {latinNameChanged && info.existing_latin_name && info.new_latin_name && (
                                             <div className="rounded bg-zinc-50 border border-zinc-100 px-2 py-1.5 text-xs text-zinc-500">
-                                                <span className="text-zinc-400 font-medium block mb-0.5">Eksisterende:</span>
-                                                {info.existing_latin_name}
+                                                <span className="text-zinc-400 font-medium block mb-0.5">Endringer:</span>
+                                                <TextDiff oldText={info.existing_latin_name} newText={info.new_latin_name} />
                                             </div>
                                         )}
                                         <input
@@ -223,9 +311,14 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                                             </div>
                                         )}
                                         {info.existing_harvest_instructions && (
-                                            <div className="rounded bg-zinc-50 border border-zinc-100 px-2 py-1.5 text-xs text-zinc-500 whitespace-pre-wrap">
-                                                <span className="text-zinc-400 font-medium block mb-1">Eksisterende:</span>
-                                                {info.existing_harvest_instructions}
+                                            <div className="rounded bg-zinc-50 border border-zinc-100 px-2 py-1.5 text-xs text-zinc-500">
+                                                <span className="text-zinc-400 font-medium block mb-1">
+                                                    {instructionsChanged && info.new_harvest_instructions ? 'Endringer:' : 'Eksisterende:'}
+                                                </span>
+                                                {instructionsChanged && info.new_harvest_instructions
+                                                    ? <TextDiff oldText={info.existing_harvest_instructions} newText={info.new_harvest_instructions} />
+                                                    : <span className="whitespace-pre-wrap">{info.existing_harvest_instructions}</span>
+                                                }
                                             </div>
                                         )}
                                         <textarea
@@ -256,9 +349,14 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                                             </div>
                                         )}
                                         {info.existing_tips && (
-                                            <div className="rounded bg-zinc-50 border border-zinc-100 px-2 py-1.5 text-xs text-zinc-500 whitespace-pre-wrap">
-                                                <span className="text-zinc-400 font-medium block mb-1">Eksisterende:</span>
-                                                {info.existing_tips}
+                                            <div className="rounded bg-zinc-50 border border-zinc-100 px-2 py-1.5 text-xs text-zinc-500">
+                                                <span className="text-zinc-400 font-medium block mb-1">
+                                                    {tipsChanged && info.new_tips ? 'Endringer:' : 'Eksisterende:'}
+                                                </span>
+                                                {tipsChanged && info.new_tips
+                                                    ? <TextDiff oldText={info.existing_tips} newText={info.new_tips} />
+                                                    : <span className="whitespace-pre-wrap">{info.existing_tips}</span>
+                                                }
                                             </div>
                                         )}
                                         <textarea
