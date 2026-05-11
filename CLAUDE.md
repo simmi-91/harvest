@@ -4,6 +4,8 @@ This file provides context for Claude Code when working on this project.
 
 Ask me questions until you are 95% confident you understand exactly what I need. Don't make any assumptions.
 
+Never run `git commit` unless explicitly asked to.
+
 ## Project Overview
 
 Harvest is a web app for tracking weekly harvest reports from Ulven Park community garden (samdyrkerlag) in Oslo. Users upload PDF harvest reports, which are parsed by AI to extract structured data about what's ready to harvest, where to find it, and how much to take.

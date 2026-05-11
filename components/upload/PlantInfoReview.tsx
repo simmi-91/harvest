@@ -266,6 +266,11 @@ export function PlantInfoReview({ plantInfo, edits, onEditChange, saving, onConf
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <StatusBadge info={info} />
                                     <span className="font-medium text-zinc-900">{info.plant_name}</span>
+                                    {info.existing_category && (
+                                        <span className="text-xs text-zinc-400">
+                                            [{PLANT_CATEGORIES.find(c => c.value === info.existing_category)?.label}]
+                                        </span>
+                                    )}
                                     {info.raw_name !== info.plant_name && (
                                         <span className="text-xs text-zinc-400">PDF: {info.raw_name}</span>
                                     )}
@@ -286,20 +291,13 @@ export function PlantInfoReview({ plantInfo, edits, onEditChange, saving, onConf
                                         )
                                     )}
                                     {showReassign && openReassign !== i && (
-                                        <>
-                                            {info.existing_category && (
-                                                <span className="text-xs text-zinc-400">
-                                                    [{PLANT_CATEGORIES.find(c => c.value === info.existing_category)?.label}]
-                                                </span>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => setOpenReassign(i)}
-                                                className="text-xs text-zinc-400 hover:text-zinc-700 underline"
-                                            >
-                                                koble til annen plante
-                                            </button>
-                                        </>
+                                        <button
+                                            type="button"
+                                            onClick={() => setOpenReassign(i)}
+                                            className="text-xs text-zinc-400 hover:text-zinc-700 underline"
+                                        >
+                                            koble til annen plante
+                                        </button>
                                     )}
                                 </div>
                                 <button

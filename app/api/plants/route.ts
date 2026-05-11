@@ -58,6 +58,6 @@ export async function POST(request: Request) {
 
         return NextResponse.json(plant, { status: 201 });
     } catch (error: unknown) {
-        return handleDatabaseError(error, 'A plant with that name already exists');
+        return handleDatabaseError(error, 'A plant with that name and category already exists');
     }
 }

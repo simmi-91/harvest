@@ -16,7 +16,7 @@ export const plantCategoryEnum = pgEnum('plant_category', ['vegetable', 'greens'
 
 export const plants = pgTable('plants', {
     id: serial('id').primaryKey(),
-    name: varchar('name', { length: 100 }).notNull().unique(),
+    name: varchar('name', { length: 100 }).notNull(),
     category: plantCategoryEnum('category').default('vegetable'),
     harvest_instructions: text('harvest_instructions'),
     tips: text('tips'),
@@ -24,7 +24,7 @@ export const plants = pgTable('plants', {
     image_url: varchar('image_url', { length: 500 }),
     created_at: timestamp('created_at').defaultNow(),
     updated_at: timestamp('updated_at').defaultNow(),
-});
+}, (t) => [unique('plants_name_category_key').on(t.name, t.category)]);
 
 export const plantAliases = pgTable('plant_aliases', {
     id: serial('id').primaryKey(),
