@@ -25,12 +25,15 @@ interface PreviewTableProps {
 
 // ── Plant status badge ────────────────────────────────────────────────────────
 
-function PlantBadge({ entry }: { entry: ResolvedEntry }) {
-    if (!entry.plant_id)
-        return <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Ingen match</span>;
-    if (entry.uncertain)
-        return <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Usikker</span>;
-    return <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Match</span>;
+function PlantBadge({ entry, duplicate }: { entry: ResolvedEntry; duplicate?: boolean }) {
+    return (
+        <span className="inline-flex items-center gap-1 flex-wrap">
+            {!entry.plant_id && <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Ingen match</span>}
+            {entry.plant_id && entry.uncertain && <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Usikker</span>}
+            {entry.plant_id && !entry.uncertain && <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Match</span>}
+            {duplicate && <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">Duplikat</span>}
+        </span>
+    );
 }
 
 // ── Editable text cell ────────────────────────────────────────────────────────
@@ -322,6 +325,17 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
     const unmatched = entries.filter((e) => !e.plant_id).length;
     const locUncertain = entries.filter((e) => e.locations.some((l) => l.uncertain)).length;
 
+    // Detect entries that share the same plant_id (only one will be saved per week)
+    const plantIdCounts = new Map<number, number>();
+    entries.forEach((e, i) => {
+        if (!skipped.has(i) && e.plant_id) {
+            plantIdCounts.set(e.plant_id, (plantIdCounts.get(e.plant_id) ?? 0) + 1);
+        }
+    });
+    const duplicatePlantIds = new Set(
+        [...plantIdCounts.entries()].filter(([, n]) => n > 1).map(([id]) => id)
+    );
+
     return (
         <div className="flex flex-col gap-4">
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -329,7 +343,14 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                 <span className="text-yellow-700"><strong>{uncertain}</strong> usikre</span>
                 <span className="text-red-700"><strong>{unmatched}</strong> uten match</span>
                 {locUncertain > 0 && <span className="text-yellow-600"><strong>{locUncertain}</strong> usikkert sted</span>}
+                {duplicatePlantIds.size > 0 && <span className="text-orange-700"><strong>{duplicatePlantIds.size}</strong> duplikat</span>}
             </div>
+
+            {duplicatePlantIds.size > 0 && (
+                <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm text-orange-800">
+                    Flere rader er matchet til samme plante – bare én rad per plante lagres per uke. Sjekk radene merket <strong>Duplikat</strong> og hopp over eller endre plant-match.
+                </div>
+            )}
 
             {/* Mobile card layout */}
             <div className="sm:hidden flex flex-col divide-y divide-[var(--color3)] rounded-lg border overflow-hidden bg-card" style={{ borderColor: 'var(--color3)' }}>
@@ -339,14 +360,15 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                     const displayNote = edit?.harvest_note !== undefined ? edit.harvest_note : entry.harvest_note;
                     const displayLocations = edit?.locations ?? entry.locations;
                     const isSkipped = skipped.has(i);
+                    const isDuplicate = !!entry.plant_id && duplicatePlantIds.has(entry.plant_id);
 
                     return (
-                        <div key={i} className={`p-3 flex flex-col gap-2 transition-colors ${isSkipped ? 'opacity-40 bg-zinc-50' : !entry.plant_id ? 'bg-red-50' : ''}`}>
+                        <div key={i} className={`p-3 flex flex-col gap-2 transition-colors ${isSkipped ? 'opacity-40 bg-zinc-50' : !entry.plant_id ? 'bg-red-50' : isDuplicate ? 'bg-orange-50' : ''}`}>
                             {/* Top row: badge + name + skip button */}
                             <div className="flex items-start gap-2">
                                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                        <PlantBadge entry={entry} />
+                                        <PlantBadge entry={entry} duplicate={isDuplicate} />
                                         <span className="font-medium text-zinc-900 text-sm">{entry.plant_name}</span>
                                         {entry.category && (
                                             <span className="text-xs text-zinc-400">{PLANT_CATEGORIES.find(c => c.value === entry.category)?.label}</span>
@@ -385,13 +407,13 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                                 </div>
                             )}
 
-                            {/* Add plant */}
-                            {!entry.plant_id && openAddForm !== i && (
+                            {/* Add / change plant */}
+                            {(!entry.plant_id || entry.uncertain) && openAddForm !== i && (
                                 <button onClick={() => setOpenAddForm(i)} className="text-xs text-left text-blue-600 hover:text-blue-800">
-                                    + Legg til plante
+                                    {entry.plant_id ? 'endre plante' : '+ Legg til plante'}
                                 </button>
                             )}
-                            {!entry.plant_id && openAddForm === i && (
+                            {(!entry.plant_id || entry.uncertain) && openAddForm === i && (
                                 <SelectOrAddPlant
                                     name={entry.plant_name}
                                     onAdd={(id, name) => { onAddPlant(i, id, name); setOpenAddForm(null); }}
@@ -422,12 +444,13 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                             const displayNote = edit?.harvest_note !== undefined ? edit.harvest_note : entry.harvest_note;
                             const displayLocations = edit?.locations ?? entry.locations;
                             const isSkipped = skipped.has(i);
+                            const isDuplicate = !!entry.plant_id && duplicatePlantIds.has(entry.plant_id);
 
                             return (
-                                <tr key={i} className={`group transition-colors ${isSkipped ? 'opacity-40 bg-zinc-50' : !entry.plant_id ? 'bg-red-50' : ''}`}>
+                                <tr key={i} className={`group transition-colors ${isSkipped ? 'opacity-40 bg-zinc-50' : !entry.plant_id ? 'bg-red-50' : isDuplicate ? 'bg-orange-50' : ''}`}>
                                     {/* Status */}
                                     <td className="px-3 py-2 whitespace-nowrap align-top">
-                                        <PlantBadge entry={entry} />
+                                        <PlantBadge entry={entry} duplicate={isDuplicate} />
                                     </td>
 
                                     {/* Plant */}
@@ -445,12 +468,12 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                                             {entry.raw_plant_name !== entry.plant_name && (
                                                 <span className="text-xs text-zinc-400">PDF: {entry.raw_plant_name}</span>
                                             )}
-                                            {!entry.plant_id && openAddForm !== i && (
+                                            {(!entry.plant_id || entry.uncertain) && openAddForm !== i && (
                                                 <button onClick={() => setOpenAddForm(i)} className="text-xs text-left text-blue-600 hover:text-blue-800 mt-0.5">
-                                                    + Legg til plante
+                                                    {entry.plant_id ? 'endre plante' : '+ Legg til plante'}
                                                 </button>
                                             )}
-                                            {!entry.plant_id && openAddForm === i && (
+                                            {(!entry.plant_id || entry.uncertain) && openAddForm === i && (
                                                 <SelectOrAddPlant
                                                     name={entry.plant_name}
                                                     onAdd={(id, name) => { onAddPlant(i, id, name); setOpenAddForm(null); }}
