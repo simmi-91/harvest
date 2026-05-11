@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { PdfDropzone } from "@/components/upload/PdfDropzone";
 import { PreviewTable, type EntryEdits } from "@/components/upload/PreviewTable";
 import { PlantInfoReview, type PlantEdits } from "@/components/upload/PlantInfoReview";
-import type { ParseResponse, ResolvedLocation, PlantCategory } from "@/types";
+import type { ParseResponse, ResolvedLocation, PlantCategory, Plant } from "@/types";
 
 function normalizeLatin(s: string | null | undefined): string | null {
     if (!s) return s ?? null;
@@ -124,6 +124,10 @@ interface CachedUpload {
     filename: string;
     timestamp: number;
     parsed: ParseResponse;
+    step?: Exclude<Step, 'saving' | 'done'>;
+    skipped?: number[];
+    edits?: [number, EntryEdits][];
+    plantEdits?: [number, PlantEdits][];
 }
 
 function loadCache(): CachedUpload | null {
@@ -141,17 +145,6 @@ function loadCache(): CachedUpload | null {
     }
 }
 
-function saveCache(filename: string, parsed: ParseResponse) {
-    try {
-        localStorage.setItem(
-            CACHE_KEY,
-            JSON.stringify({ filename, timestamp: Date.now(), parsed })
-        );
-    } catch {
-        /* quota exceeded */
-    }
-}
-
 export default function UploadPage() {
     const [step, setStep] = useState<Step>("upload");
     const [loading, setLoading] = useState(false);
@@ -163,6 +156,7 @@ export default function UploadPage() {
     const [parsed, setParsed] = useState<ParseResponse | null>(null);
     const [skipped, setSkipped] = useState<Set<number>>(new Set());
     const [edits, setEdits] = useState<Map<number, EntryEdits>>(new Map());
+    const [plantEdits, setPlantEdits] = useState<Map<number, PlantEdits>>(new Map());
     const [error, setError] = useState<string | null>(null);
     const [saveResults, setSaveResults] = useState<{
         saved: number;
@@ -177,9 +171,28 @@ export default function UploadPage() {
         if (cached) {
             setParsed(cached.parsed);
             setFilename(cached.filename);
-            setStep(cached.parsed.plant_info.length > 0 ? "plant-review" : "preview");
+            if (cached.skipped) setSkipped(new Set(cached.skipped));
+            if (cached.edits) setEdits(new Map(cached.edits));
+            if (cached.plantEdits) setPlantEdits(new Map(cached.plantEdits));
+            setStep(cached.step ?? (cached.parsed.plant_info.length > 0 ? "plant-review" : "preview"));
         }
     }, []);
+
+    // Persist state whenever it changes
+    useEffect(() => {
+        if (!parsed || !filename || step === 'done' || step === 'saving' || step === 'upload') return;
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+                filename,
+                timestamp: Date.now(),
+                parsed,
+                step,
+                skipped: Array.from(skipped),
+                edits: Array.from(edits.entries()),
+                plantEdits: Array.from(plantEdits.entries()),
+            }));
+        } catch { /* quota exceeded */ }
+    }, [parsed, filename, step, skipped, edits, plantEdits]);
 
     function toggleSkip(i: number) {
         setSkipped((prev) => {
@@ -250,7 +263,7 @@ export default function UploadPage() {
             setFilename(file.name);
             setSkipped(new Set());
             setEdits(new Map());
-            saveCache(file.name, data);
+            setPlantEdits(new Map());
             setStep(data.plant_info.length > 0 ? "plant-review" : "preview");
         } catch {
             setError("Nettverksfeil – kunne ikke nå serveren");
@@ -274,7 +287,47 @@ export default function UploadPage() {
         });
     }
 
-    async function handleSavePlants(plantEdits: Map<number, PlantEdits>) {
+    async function handleReassignPlantInfo(index: number, plantId: number, plantName: string) {
+        const res = await fetch(`/api/plants/${plantId}`);
+        if (!res.ok) return;
+        const plant = (await res.json()) as Plant;
+        setParsed((prev) => {
+            if (!prev) return prev;
+            const plant_info = [...prev.plant_info];
+            const existing = plant_info[index];
+            plant_info[index] = {
+                ...existing,
+                plant_id: plant.id,
+                plant_name: plant.name,
+                existing_category: plant.category,
+                existing_latin_name: plant.latin_name,
+                existing_harvest_instructions: plant.harvest_instructions,
+                existing_tips: plant.tips,
+                is_new: false,
+                uncertain: false,
+                has_changes:
+                    (existing.new_latin_name !== null && existing.new_latin_name !== plant.latin_name) ||
+                    (existing.new_harvest_instructions !== null && existing.new_harvest_instructions !== plant.harvest_instructions) ||
+                    (existing.new_tips !== null && existing.new_tips !== plant.tips),
+            };
+            return { ...prev, plant_info };
+        });
+        setPlantEdits((prev) => {
+            const next = new Map(prev);
+            next.delete(index);
+            return next;
+        });
+    }
+
+    function handlePlantEditChange(i: number, patch: Partial<PlantEdits>) {
+        setPlantEdits((prev) => {
+            const next = new Map(prev);
+            next.set(i, { ...next.get(i), ...patch });
+            return next;
+        });
+    }
+
+    async function handleSavePlants() {
         if (!parsed) return;
         setSavingPlants(true);
 
@@ -312,10 +365,16 @@ export default function UploadPage() {
                     newPlantIds.set(info.raw_name, { id: plant.id, name: plant.name });
                 }
             } else if (info.plant_id) {
+                const category = edit.category;
                 await fetch(`/api/plants/${info.plant_id}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ latin_name, harvest_instructions, tips }),
+                    body: JSON.stringify({
+                        latin_name,
+                        harvest_instructions,
+                        tips,
+                        ...(category !== undefined && { category }),
+                    }),
                 });
             }
         }
@@ -413,9 +472,7 @@ export default function UploadPage() {
             .filter((n) => Number.isInteger(n) && n >= 1 && n <= 53);
         setParsed((prev) => {
             if (!prev) return prev;
-            const updated = { ...prev, year, weeks: weeks.length > 0 ? weeks : prev.weeks };
-            if (filename) saveCache(filename, updated);
-            return updated;
+            return { ...prev, year, weeks: weeks.length > 0 ? weeks : prev.weeks };
         });
     }
 
@@ -425,6 +482,7 @@ export default function UploadPage() {
         setFilename(null);
         setEdits(new Map());
         setSkipped(new Set());
+        setPlantEdits(new Map());
         setStep("upload");
     }
 
@@ -485,9 +543,12 @@ export default function UploadPage() {
                     </div>
                     <PlantInfoReview
                         plantInfo={parsed.plant_info}
+                        edits={plantEdits}
+                        onEditChange={handlePlantEditChange}
                         saving={savingPlants}
                         onConfirm={handleSavePlants}
                         onSkipAll={() => setStep("preview")}
+                        onReassign={handleReassignPlantInfo}
                     />
                 </div>
             )}
@@ -639,6 +700,7 @@ export default function UploadPage() {
                                 setSaveResults(null);
                                 setFilename(null);
                                 setEdits(new Map());
+                                setPlantEdits(new Map());
                                 setStep("upload");
                             }}
                             className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-50">

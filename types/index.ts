@@ -112,6 +112,7 @@ export interface ResolvedPlantInfo {
     plant_id: number | null;
     plant_name: string;
     raw_name: string;
+    existing_category: PlantCategory | null;
     existing_latin_name: string | null;
     existing_harvest_instructions: string | null;
     existing_tips: string | null;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, RotateCcw } from 'lucide-react';
 import { PLANT_CATEGORIES } from '@/lib/plantCategories';
 import type { PlantCategory, ResolvedPlantInfo } from '@/types';
@@ -103,9 +103,12 @@ export type PlantEdits = {
 
 interface Props {
     plantInfo: ResolvedPlantInfo[];
+    edits: Map<number, PlantEdits>;
+    onEditChange: (i: number, patch: Partial<PlantEdits>) => void;
     saving: boolean;
-    onConfirm: (edits: Map<number, PlantEdits>) => void;
+    onConfirm: () => void;
     onSkipAll: () => void;
+    onReassign: (i: number, plantId: number, plantName: string) => void;
 }
 
 function FieldActionButton({ icon: Icon, label, onClick }: {
@@ -135,16 +138,54 @@ function StatusBadge({ info }: { info: ResolvedPlantInfo }) {
 
 type AliasState = 'saving' | 'saved' | 'error';
 
-export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Props) {
-    const [edits, setEdits] = useState<Map<number, PlantEdits>>(new Map());
+function PlantSearch({ onSelect, onCancel }: {
+    onSelect: (id: number, name: string) => void;
+    onCancel: () => void;
+}) {
+    const [plants, setPlants] = useState<{ id: number; name: string }[]>([]);
+    const [query, setQuery] = useState('');
+
+    useEffect(() => {
+        fetch('/api/plants').then(r => r.json()).then(data => setPlants(data as { id: number; name: string }[]));
+    }, []);
+
+    const filtered = query.trim()
+        ? plants.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+        : plants;
+
+    return (
+        <div className="flex flex-col gap-1.5 mt-1">
+            <input
+                autoFocus
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Søk etter plante…"
+                className="w-full rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            />
+            {filtered.length > 0 && (
+                <ul className="max-h-36 overflow-y-auto rounded border border-zinc-200 bg-white shadow-sm">
+                    {filtered.slice(0, 20).map(p => (
+                        <li key={p.id}>
+                            <button type="button" onClick={() => onSelect(p.id, p.name)}
+                                className="w-full text-left px-2 py-1 text-xs text-zinc-800 hover:bg-zinc-50">
+                                {p.name}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <button type="button" onClick={onCancel} className="text-xs text-zinc-400 hover:text-zinc-600 text-left">Avbryt</button>
+        </div>
+    );
+}
+
+export function PlantInfoReview({ plantInfo, edits, onEditChange, saving, onConfirm, onSkipAll, onReassign }: Props) {
     const [aliasStates, setAliasStates] = useState<Map<number, AliasState>>(new Map());
+    const [openReassign, setOpenReassign] = useState<number | null>(null);
 
     function setEdit(i: number, patch: Partial<PlantEdits>) {
-        setEdits((prev) => {
-            const next = new Map(prev);
-            next.set(i, { ...next.get(i), ...patch });
-            return next;
-        });
+        onEditChange(i, patch);
     }
 
     async function addAlias(i: number, plantId: number, alias: string) {
@@ -158,8 +199,7 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
     }
 
     function toggleSkip(i: number) {
-        const current = edits.get(i)?.skip ?? false;
-        setEdit(i, { skip: !current });
+        setEdit(i, { skip: !(edits.get(i)?.skip ?? false) });
     }
 
     function getField(i: number, field: 'latin_name' | 'harvest_instructions' | 'tips', info: ResolvedPlantInfo): string {
@@ -195,7 +235,7 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                         Hopp over alle
                     </button>
                     <button
-                        onClick={() => onConfirm(edits)}
+                        onClick={onConfirm}
                         disabled={saving || activeCount === 0}
                         className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm text-white hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
@@ -217,6 +257,8 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                     const tipsChanged = !info.is_new && info.new_tips !== null && info.new_tips !== info.existing_tips;
                     const showAliasBtn = !info.is_new && info.plant_id !== null && info.raw_name !== info.plant_name && info.uncertain;
                     const aliasState = aliasStates.get(i);
+                    const showReassign = !info.is_new;
+                    const categoryChanged = !info.is_new && info.new_category !== null && info.new_category !== info.existing_category;
 
                     return (
                         <div key={i} className={`rounded-lg border transition-opacity ${isSkipped ? 'opacity-40 border-zinc-100 bg-zinc-50' : 'border-zinc-200 bg-white'}`}>
@@ -243,6 +285,15 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                                             </button>
                                         )
                                     )}
+                                    {showReassign && openReassign !== i && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setOpenReassign(i)}
+                                            className="text-xs text-zinc-400 hover:text-zinc-700 underline"
+                                        >
+                                            koble til annen plante
+                                        </button>
+                                    )}
                                 </div>
                                 <button
                                     onClick={() => toggleSkip(i)}
@@ -251,11 +302,20 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                                     {isSkipped ? 'Gjenopprett' : 'Hopp over'}
                                 </button>
                             </div>
+                            {openReassign === i && (
+                                <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50">
+                                    <p className="text-xs text-zinc-500 mb-1.5">Koble til annen plante:</p>
+                                    <PlantSearch
+                                        onSelect={(id, name) => { onReassign(i, id, name); setOpenReassign(null); }}
+                                        onCancel={() => setOpenReassign(null)}
+                                    />
+                                </div>
+                            )}
 
                             {!isSkipped && (
                                 <div className="px-4 py-3 flex flex-col gap-4">
-                                    {/* Category (only for new plants) */}
-                                    {info.is_new && (
+                                    {/* Category */}
+                                    {(info.is_new || categoryChanged) && (
                                         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
                                             <label className="text-xs font-medium text-zinc-500 sm:w-28 sm:shrink-0">Kategori</label>
                                             <select
@@ -265,6 +325,11 @@ export function PlantInfoReview({ plantInfo, saving, onConfirm, onSkipAll }: Pro
                                             >
                                                 {PLANT_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                                             </select>
+                                            {!info.is_new && info.existing_category && (
+                                                <span className="text-xs text-zinc-400">
+                                                    eksisterende: {PLANT_CATEGORIES.find(c => c.value === info.existing_category)?.label}
+                                                </span>
+                                            )}
                                         </div>
                                     )}
 
