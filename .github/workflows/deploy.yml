@@ -41,7 +41,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "docker-compose.prod.yml,scripts/init.sql"
+          source: "docker-compose.prod.yml,scripts/init.sql,scripts/rollback.sh"
           target: "/tmp/harvest-infra"
           rm: true
 
@@ -54,8 +54,10 @@ jobs:
           script: |
             # --- App ---
             cd /var/www/harvest/
-            if [ -d "app_old" ]; then sudo rm -rf app_old; fi
-            if [ -d "app" ]; then sudo mv app app_old; fi
+
+            # Rotate: keep app_old until health check passes
+            [ -d "app_old" ] && sudo rm -rf app_old
+            [ -d "app" ] && sudo mv app app_old
             sudo mv /tmp/harvest-deploy app
 
             # Link .env.production (stored outside app/ so it survives rotations)
@@ -69,6 +71,10 @@ jobs:
             sudo mv /tmp/harvest-infra/docker-compose.prod.yml /var/www/harvest/docker-compose.prod.yml
             sudo mkdir -p /var/www/harvest/scripts
             sudo mv /tmp/harvest-infra/scripts/init.sql /var/www/harvest/scripts/init.sql
+
+            # --- Rollback script ---
+            sudo mv /tmp/harvest-infra/scripts/rollback.sh /var/www/harvest/rollback.sh
+            sudo chmod +x /var/www/harvest/rollback.sh
 
             # --- Database ---
             cd /var/www/harvest
@@ -84,6 +90,30 @@ jobs:
             sudo -u $DEPLOY_USER pm2 restart harvest \
               || sudo -u $DEPLOY_USER pm2 start npm --name harvest --cwd /var/www/harvest/app -- start -- -p 8030
 
-            echo "Deployment complete!"
-            sudo -u $DEPLOY_USER pm2 status
-            docker compose -f /var/www/harvest/docker-compose.prod.yml ps
+            # --- Health check ---
+            echo "Running health check..."
+            HEALTHY=false
+            for i in $(seq 1 10); do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8030/ || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                HEALTHY=true
+                break
+              fi
+              echo "Attempt $i/10 — got $STATUS, retrying in 5s..."
+              sleep 5
+            done
+
+            if [ "$HEALTHY" = "true" ]; then
+              echo "Health check passed."
+              sudo -u $DEPLOY_USER pm2 status
+              docker compose -f /var/www/harvest/docker-compose.prod.yml ps
+            else
+              echo "Health check failed! Rolling back to previous version..."
+              sudo -u $DEPLOY_USER pm2 stop harvest
+              sudo rm -rf /var/www/harvest/app
+              sudo mv /var/www/harvest/app_old /var/www/harvest/app
+              sudo -u $DEPLOY_USER pm2 restart harvest \
+                || sudo -u $DEPLOY_USER pm2 start npm --name harvest --cwd /var/www/harvest/app -- start -- -p 8030
+              echo "Rollback complete. Deploy marked as failed."
+              exit 1
+            fi
