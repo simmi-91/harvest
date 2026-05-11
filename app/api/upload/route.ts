@@ -18,6 +18,13 @@ import type {
     ParseResponse,
 } from '@/types';
 
+function stripPlantNameAffixes(name: string): string {
+    return name
+        .replace(/^(urter|spiselige blomster)\s*:\s*/i, '')
+        .replace(/\s+blomst$/i, '')
+        .trim();
+}
+
 function normalizeFractions(text: string | null): string | null {
     if (!text) return text;
     return text
@@ -83,7 +90,7 @@ export async function POST(req: Request) {
     const plantById = new Map(plants.map((p) => [p.id, p]));
 
     const resolvedEntries: ResolvedEntry[] = parsed.harvest_entries.map((entry: GeminiEntry) => {
-        const plantMatch = matchPlant(entry.plant_name, plants, plantAliases);
+        const plantMatch = matchPlant(stripPlantNameAffixes(entry.plant_name), plants, plantAliases);
 
         const resolvedLocations: ResolvedLocation[] = entry.locations.map(
             (loc: GeminiLocation) => {
@@ -136,7 +143,7 @@ export async function POST(req: Request) {
         info.harvest_instructions = normalizeFractions(info.harvest_instructions);
         info.tips = normalizeFractions(info.tips);
 
-        const match = matchPlant(info.name, plants, plantAliases);
+        const match = matchPlant(stripPlantNameAffixes(info.name), plants, plantAliases);
 
         if (match) {
             const plant = plantById.get(match.plant_id);
