@@ -37,7 +37,14 @@ const GeminiCombinedResultSchema = z.object({
     ),
 });
 
-const MODEL = 'gemini-3.1-flash-lite-preview';
+const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
+
+export const GEMINI_MODELS = [
+    { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite (standard)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (reserve)' },
+] as const;
+
+export type GeminiModel = typeof GEMINI_MODELS[number]['value'];
 
 const PROMPT = `Du leser et høsterapport-PDF fra Ulven Park community garden i Oslo.
 Rapporten inneholder TO typer sider:
@@ -185,12 +192,12 @@ async function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function parseCombined(jpegBase64List: string[]): Promise<GeminiCombinedResult> {
+export async function parseCombined(jpegBase64List: string[], model: GeminiModel = DEFAULT_MODEL): Promise<GeminiCombinedResult> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: MODEL });
+    const geminiModel = genAI.getGenerativeModel({ model });
 
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -199,7 +206,7 @@ export async function parseCombined(jpegBase64List: string[]): Promise<GeminiCom
             await sleep(apiDelay || 2 ** attempt * 1000);
         }
         try {
-            const result = await model.generateContent([
+            const result = await geminiModel.generateContent([
                 { text: PROMPT },
                 ...jpegBase64List.map((data) => ({
                     inlineData: { data, mimeType: 'image/jpeg' as const },
