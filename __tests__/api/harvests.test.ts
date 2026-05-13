@@ -70,6 +70,163 @@ describe('GET /api/harvests', () => {
         const res = await GET(req);
         expect(res.status).toBe(500);
     });
+
+    it('filters by address and excludes non-matching harvests', async () => {
+        const mockHarvests = [
+            {
+                id: 1,
+                plant_id: 1,
+                year: 2026,
+                week: 18,
+                amount: '1 kg',
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 1, name: 'Basilikum', category: 'herb' },
+                locations: [{ id: 1, harvest_id: 1, address: 'Ulvenpark', position: 'Tak B', boxes: null, location_note: null }],
+            },
+            {
+                id: 2,
+                plant_id: 2,
+                year: 2026,
+                week: 18,
+                amount: '2 kg',
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 2, name: 'Tomat', category: 'vegetable' },
+                locations: [{ id: 2, harvest_id: 2, address: 'Ulven T', position: null, boxes: null, location_note: null }],
+            },
+        ];
+        (db.query.harvests.findMany as jest.Mock).mockResolvedValue(mockHarvests);
+
+        const req = new Request('http://localhost/api/harvests?year=2026&week=18&address=Ulvenpark');
+        const res = await GET(req);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).toHaveLength(1);
+        expect(body[0].plant_name).toBe('Basilikum');
+    });
+
+    it('filters by position and includes harvests with null position', async () => {
+        const mockHarvests = [
+            {
+                id: 1,
+                plant_id: 1,
+                year: 2026,
+                week: 18,
+                amount: '1 kg',
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 1, name: 'Basilikum', category: 'herb' },
+                locations: [{ id: 1, harvest_id: 1, address: 'Ulvenpark', position: 'Tak B', boxes: null, location_note: null }],
+            },
+            {
+                id: 2,
+                plant_id: 2,
+                year: 2026,
+                week: 18,
+                amount: '2 kg',
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 2, name: 'Tomat', category: 'vegetable' },
+                locations: [{ id: 2, harvest_id: 2, address: 'Ulvenpark', position: 'Tak F', boxes: null, location_note: null }],
+            },
+            {
+                id: 3,
+                plant_id: 3,
+                year: 2026,
+                week: 18,
+                amount: '3 kg',
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 3, name: 'Persille', category: 'herb' },
+                locations: [{ id: 3, harvest_id: 3, address: 'Ulvenpark', position: null, boxes: null, location_note: null }],
+            },
+        ];
+        (db.query.harvests.findMany as jest.Mock).mockResolvedValue(mockHarvests);
+
+        const req = new Request('http://localhost/api/harvests?year=2026&week=18&position=Tak+B');
+        const res = await GET(req);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).toHaveLength(2);
+        const names = body.map((h: { plant_name: string }) => h.plant_name);
+        expect(names).toContain('Basilikum');
+        expect(names).toContain('Persille');
+        expect(names).not.toContain('Tomat');
+    });
+
+    it('filters by both address and position', async () => {
+        const mockHarvests = [
+            {
+                id: 1,
+                plant_id: 1,
+                year: 2026,
+                week: 18,
+                amount: '1 kg',
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 1, name: 'Basilikum', category: 'herb' },
+                locations: [{ id: 1, harvest_id: 1, address: 'Ulvenpark', position: 'Tak B', boxes: null, location_note: null }],
+            },
+            {
+                id: 2,
+                plant_id: 2,
+                year: 2026,
+                week: 18,
+                amount: '2 kg',
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 2, name: 'Tomat', category: 'vegetable' },
+                locations: [{ id: 2, harvest_id: 2, address: 'Ulven T', position: 'Tak B', boxes: null, location_note: null }],
+            },
+            {
+                id: 3,
+                plant_id: 3,
+                year: 2026,
+                week: 18,
+                amount: '3 kg',
+                harvest_note: null,
+                is_new: false,
+                is_done: false,
+                created_at: new Date(),
+                updated_at: new Date(),
+                plant: { id: 3, name: 'Persille', category: 'herb' },
+                locations: [{ id: 3, harvest_id: 3, address: 'Ulvenpark', position: null, boxes: null, location_note: null }],
+            },
+        ];
+        (db.query.harvests.findMany as jest.Mock).mockResolvedValue(mockHarvests);
+
+        const req = new Request('http://localhost/api/harvests?year=2026&week=18&address=Ulvenpark&position=Tak+B');
+        const res = await GET(req);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).toHaveLength(2);
+        const names = body.map((h: { plant_name: string }) => h.plant_name);
+        expect(names).toContain('Basilikum');
+        expect(names).toContain('Persille');
+        expect(names).not.toContain('Tomat');
+    });
 });
 
 describe('POST /api/harvests', () => {
