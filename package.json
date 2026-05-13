@@ -14,7 +14,9 @@
     "db:migrate": "psql $DATABASE_URL -f scripts/init.sql",
     "db:seed": "psql $DATABASE_URL -f scripts/seed.sql",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "typecheck": "tsc --noEmit",
+    "sandcastle": "npx tsx .sandcastle/main.mts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -28,6 +30,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@ai-hero/sandcastle": "^0.5.10",
     "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^30.0.0",
