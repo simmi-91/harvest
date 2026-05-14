@@ -5,9 +5,9 @@ import { PdfDropzone } from "@/components/upload/PdfDropzone";
 import { PreviewTable, type EntryEdits } from "@/components/upload/PreviewTable";
 import { PlantInfoReview, type PlantEdits } from "@/components/upload/PlantInfoReview";
 import type { ParseResponse, ResolvedLocation, PlantCategory, Plant } from "@/types";
+import { GEMINI_MODELS, type GeminiModel } from "@/lib/gemini";
 
-
-function parseApiError(raw: string): { summary: string; details: string | null } {
+function parseApiError(raw: string, modelLabel?: string): { summary: string; details: string | null } {
     const statusMatch = raw.match(/\[(\d{3}\s+[^\]]+)\]/);
     const jsonStart = raw.lastIndexOf("[{");
     const textPart = (jsonStart > 0 ? raw.slice(0, jsonStart) : raw).trim();
@@ -21,9 +21,12 @@ function parseApiError(raw: string): { summary: string; details: string | null }
     }
     if (statusMatch) {
         const isDailyQuota = raw.includes("PerDay");
-        const retryMatch = !isDailyQuota && raw.match(/retry in ([\d.]+)s/i);
+        const is503 = raw.includes("[503");
+        const retryMatch = !isDailyQuota && !is503 && raw.match(/retry in ([\d.]+)s/i);
         const suffix = isDailyQuota
             ? " – daglig kvote nådd, prøv igjen i morgen formiddag"
+            : is503
+            ? ` – Modellen${modelLabel ? ` (${modelLabel})` : ""} er for øyeblikket overbelastet – prøv igjen senere eller velg en annen modell`
             : retryMatch
             ? ` – prøv igjen om ${Math.ceil(parseFloat(retryMatch[1]))}s`
             : "";
@@ -42,13 +45,15 @@ function ErrorCard({
     error,
     onRetry,
     loading,
+    modelLabel,
 }: {
     error: string;
     onRetry?: () => void;
     loading: boolean;
+    modelLabel?: string;
 }) {
     const [expanded, setExpanded] = useState(false);
-    const { summary, details } = parseApiError(error);
+    const { summary, details } = parseApiError(error, modelLabel);
     return (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <div className="flex items-start gap-3">
@@ -140,6 +145,7 @@ function loadCache(): CachedUpload | null {
 }
 
 export default function UploadPage() {
+    const [model, setModel] = useState<GeminiModel>(GEMINI_MODELS[0].value);
     const [step, setStep] = useState<Step>("upload");
     const [loading, setLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState("");
@@ -281,6 +287,7 @@ export default function UploadPage() {
         try {
             const form = new FormData();
             form.append("file", file);
+            form.append("model", model);
             const res = await fetch("/api/upload", { method: "POST", body: form });
             const body = await res.json();
             if (!res.ok) {
@@ -536,6 +543,14 @@ export default function UploadPage() {
                             automatisk.
                         </p>
                     </div>
+                    <select
+                        value={model}
+                        onChange={(e) => setModel(e.target.value as GeminiModel)}
+                        className="w-fit rounded border border-zinc-300 px-2 py-1 text-sm text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400">
+                        {GEMINI_MODELS.map((m) => (
+                            <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                    </select>
                     <PdfDropzone onFile={handleFile} loading={loading} />
                     {loading && loadingMsg && (
                         <div className="flex items-center gap-3 text-sm text-zinc-700">
@@ -552,6 +567,7 @@ export default function UploadPage() {
                                     : undefined
                             }
                             loading={loading}
+                            modelLabel={GEMINI_MODELS.find((m) => m.value === model)?.label}
                         />
                     )}
                 </div>

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { asc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { plants as plantsTable, plantAliases as plantAliasesTable, locationAliases as locationAliasesTable } from '@/lib/schema';
-import { parseCombined } from '@/lib/gemini';
+import { parseCombined, GEMINI_MODELS, type GeminiModel } from '@/lib/gemini';
 import { pdfToJpegBase64 } from '@/lib/pdfToImages';
 import { matchPlant } from '@/lib/plantMatcher';
 import { resolveLocation } from '@/lib/locationResolver';
@@ -45,6 +45,11 @@ export async function POST(req: Request) {
 
     const file = formData.get('file') as File | null;
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+
+    const rawModel = formData.get('model');
+    const model: GeminiModel = GEMINI_MODELS.some((m) => m.value === rawModel)
+        ? (rawModel as GeminiModel)
+        : GEMINI_MODELS[0].value;
     if (file.type !== 'application/pdf') {
         return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 });
     }
@@ -65,7 +70,7 @@ export async function POST(req: Request) {
 
     let parsed;
     try {
-        parsed = await parseCombined(images);
+        parsed = await parseCombined(images, model);
     } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         return NextResponse.json({ error: `Failed to parse PDF: ${msg}` }, { status: 500 });
