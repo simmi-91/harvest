@@ -38,9 +38,7 @@ const GeminiCombinedResultSchema = z.object({
 });
 
 export const GEMINI_MODELS = [
-    { value: 'gemini-3.1-flash-preview', label: 'Gemini 3.1 Flash' },
     { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite' },
-    { value: 'gemini-3.1-flash-image', label: 'Gemini 3.1 Flash Image' },
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
 ] as const;
 
