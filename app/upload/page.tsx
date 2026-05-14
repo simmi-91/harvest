@@ -5,6 +5,8 @@ import { PdfDropzone } from "@/components/upload/PdfDropzone";
 import { PreviewTable, type EntryEdits } from "@/components/upload/PreviewTable";
 import { PlantInfoReview, type PlantEdits } from "@/components/upload/PlantInfoReview";
 import type { ParseResponse, ResolvedLocation, PlantCategory, Plant } from "@/types";
+import { GEMINI_MODELS } from "@/lib/gemini";
+import type { GeminiModel } from "@/lib/gemini";
 
 
 function parseApiError(raw: string): { summary: string; details: string | null } {
@@ -140,6 +142,7 @@ function loadCache(): CachedUpload | null {
 }
 
 export default function UploadPage() {
+    const [model, setModel] = useState<GeminiModel>(GEMINI_MODELS[0].value);
     const [step, setStep] = useState<Step>("upload");
     const [loading, setLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState("");
@@ -281,6 +284,7 @@ export default function UploadPage() {
         try {
             const form = new FormData();
             form.append("file", file);
+            form.append("model", model);
             const res = await fetch("/api/upload", { method: "POST", body: form });
             const body = await res.json();
             if (!res.ok) {
@@ -536,6 +540,14 @@ export default function UploadPage() {
                             automatisk.
                         </p>
                     </div>
+                    <select
+                        value={model}
+                        onChange={(e) => setModel(e.target.value as GeminiModel)}
+                        className="w-fit rounded border border-zinc-300 px-2 py-1 text-sm text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400">
+                        {GEMINI_MODELS.map((m) => (
+                            <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                    </select>
                     <PdfDropzone onFile={handleFile} loading={loading} />
                     {loading && loadingMsg && (
                         <div className="flex items-center gap-3 text-sm text-zinc-700">
