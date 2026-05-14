@@ -180,5 +180,74 @@ describe('POST /api/upload', () => {
             const body = await res.json();
             expect(body.plant_info).toEqual([]);
         });
+
+        it('merges duplicate entries with same certain plant_id', async () => {
+            (parseCombined as jest.Mock).mockResolvedValueOnce({
+                year: 2024,
+                weeks: [28],
+                harvest_entries: [
+                    {
+                        plant_name: 'Chili',
+                        category: null,
+                        amount: '5 stk',
+                        harvest_note: null,
+                        is_new: false,
+                        uncertain: false,
+                        locations: [{ address: 'Ulvenpark', position: null, boxes: [1], location_note: null, uncertain: false }],
+                    },
+                    {
+                        plant_name: 'Chili',
+                        category: null,
+                        amount: '3 stk',
+                        harvest_note: null,
+                        is_new: false,
+                        uncertain: false,
+                        locations: [{ address: 'Ulvenpark', position: null, boxes: [2], location_note: null, uncertain: false }],
+                    },
+                ],
+                plant_info: [],
+            });
+
+            const res = await POST(makeRequest(mockPdf));
+            expect(res.status).toBe(200);
+            const body = await res.json();
+            expect(body.entries).toHaveLength(1);
+            expect(body.entries[0].plant_id).toBe(1);
+            expect(body.entries[0].locations).toHaveLength(2);
+            expect(body.entries[0].amount).toBe('5 stk');
+        });
+
+        it('does not merge entries when uncertain=true', async () => {
+            (parseCombined as jest.Mock).mockResolvedValueOnce({
+                year: 2024,
+                weeks: [28],
+                harvest_entries: [
+                    {
+                        plant_name: 'Chili',
+                        category: null,
+                        amount: '5 stk',
+                        harvest_note: null,
+                        is_new: false,
+                        uncertain: true,
+                        locations: [{ address: 'Ulvenpark', position: null, boxes: [1], location_note: null, uncertain: false }],
+                    },
+                    {
+                        plant_name: 'Chili',
+                        category: null,
+                        amount: '3 stk',
+                        harvest_note: null,
+                        is_new: false,
+                        uncertain: true,
+                        locations: [{ address: 'Ulvenpark', position: null, boxes: [2], location_note: null, uncertain: false }],
+                    },
+                ],
+                plant_info: [],
+            });
+
+            const res = await POST(makeRequest(mockPdf));
+            expect(res.status).toBe(200);
+            const body = await res.json();
+            expect(body.entries).toHaveLength(2);
+        });
     });
 });
