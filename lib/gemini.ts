@@ -37,15 +37,14 @@ const GeminiCombinedResultSchema = z.object({
     ),
 });
 
-const DEFAULT_MODEL = 'gemini-3.1-flash';
-
 export const GEMINI_MODELS = [
-    { value: 'gemini-3.1-flash', label: 'Gemini 3.1 Flash' },
-    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite' },
-    { value: 'gemini-3.1-flash-image-preview', label: 'Gemini 3.1 Flash Image (Preview)' },
+    { value: 'gemini-3.1-flash-preview', label: 'Gemini 3.1 Flash' },
+    { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite' },
+    { value: 'gemini-3.1-flash-image', label: 'Gemini 3.1 Flash Image' },
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image' },
 ] as const;
+
+const DEFAULT_MODEL = GEMINI_MODELS[0].value;
 
 export type GeminiModel = typeof GEMINI_MODELS[number]['value'];
 
