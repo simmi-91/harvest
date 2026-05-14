@@ -57,7 +57,11 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     console.log("\nReview complete.");
 
     try {
-      execSync(`git push origin ${branch}`, { stdio: "inherit" });
+      const token = process.env.GH_TOKEN;
+      const sshRemote = execSync("git remote get-url origin", { encoding: "utf8" }).trim();
+      const httpsRemote = sshRemote.replace(/^git@github\.com:/, "https://github.com/").replace(/\.git$/, "") + ".git";
+      const pushUrl = token ? httpsRemote.replace("https://", `https://x-access-token:${token}@`) : `origin`;
+      execSync(`git push ${pushUrl} ${branch}`, { stdio: "inherit" });
       execSync(
         `gh pr create --base main --head ${branch} --title "Sandcastle: ${branch}" --body "Automated PR from Sandcastle sequential-reviewer."`,
         { stdio: "inherit" }
