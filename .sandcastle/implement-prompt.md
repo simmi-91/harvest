@@ -35,7 +35,8 @@ Pick the highest-priority open issue that is not blocked by another open issue.
 - Work on **one issue per iteration**. Do not attempt multiple issues in a single iteration.
 - Do not close an issue until you have committed the fix and verified tests pass.
 - Do not leave commented-out code or TODO comments in committed code.
-- If you are blocked, leave a comment on the issue and move on — do not close it.
+- An issue is **blocked** if its body contains "Blocked by #X" and issue #X is still open. Skip blocked issues and pick the next actionable one.
+- If you are blocked on all remaining issues, leave a comment on each and stop.
 
 # Done
 
