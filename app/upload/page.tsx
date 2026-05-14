@@ -7,7 +7,10 @@ import { PlantInfoReview, type PlantEdits } from "@/components/upload/PlantInfoR
 import type { ParseResponse, ResolvedLocation, PlantCategory, Plant } from "@/types";
 import { GEMINI_MODELS, type GeminiModel } from "@/lib/gemini";
 
-function parseApiError(raw: string, modelLabel?: string): { summary: string; details: string | null } {
+function parseApiError(
+    raw: string,
+    modelLabel: string
+): { summary: string; details: string | null } {
     const statusMatch = raw.match(/\[(\d{3}\s+[^\]]+)\]/);
     const jsonStart = raw.lastIndexOf("[{");
     const textPart = (jsonStart > 0 ? raw.slice(0, jsonStart) : raw).trim();
@@ -24,14 +27,14 @@ function parseApiError(raw: string, modelLabel?: string): { summary: string; det
         const is503 = raw.includes("[503");
         const retryMatch = !isDailyQuota && !is503 && raw.match(/retry in ([\d.]+)s/i);
         const suffix = isDailyQuota
-            ? " – daglig kvote nådd, prøv igjen i morgen formiddag"
+            ? " - daglig kvote nådd, prøv igjen i morgen formiddag"
             : is503
-            ? ` – Modellen${modelLabel ? ` (${modelLabel})` : ""} er for øyeblikket overbelastet – prøv igjen senere eller velg en annen modell`
+            ? ` - Modellen er for øyeblikket overbelastet - prøv igjen senere eller velg en annen modell`
             : retryMatch
-            ? ` – prøv igjen om ${Math.ceil(parseFloat(retryMatch[1]))}s`
+            ? ` - prøv igjen om ${Math.ceil(parseFloat(retryMatch[1]))}s`
             : "";
         return {
-            summary: `Gemini API: ${statusMatch[1]}${suffix}`,
+            summary: `Gemini API: ${statusMatch[1]}${suffix} - ${modelLabel}`,
             details: textPart + (formattedJson ? "\n\n" + formattedJson : ""),
         };
     }
@@ -50,7 +53,7 @@ function ErrorCard({
     error: string;
     onRetry?: () => void;
     loading: boolean;
-    modelLabel?: string;
+    modelLabel: string;
 }) {
     const [expanded, setExpanded] = useState(false);
     const { summary, details } = parseApiError(error, modelLabel);
@@ -123,7 +126,7 @@ interface CachedUpload {
     filename: string;
     timestamp: number;
     parsed: ParseResponse;
-    step?: Exclude<Step, 'saving' | 'done'>;
+    step?: Exclude<Step, "saving" | "done">;
     skipped?: number[];
     edits?: [number, EntryEdits][];
     plantEdits?: [number, PlantEdits][];
@@ -175,13 +178,15 @@ export default function UploadPage() {
             if (cached.skipped) setSkipped(new Set(cached.skipped));
             if (cached.edits) setEdits(new Map(cached.edits));
             if (cached.plantEdits) setPlantEdits(new Map(cached.plantEdits));
-            setStep(cached.step ?? (cached.parsed.plant_info.length > 0 ? "plant-review" : "preview"));
+            setStep(
+                cached.step ?? (cached.parsed.plant_info.length > 0 ? "plant-review" : "preview")
+            );
         }
     }, []);
 
     // Auto-skip entries that already exist in the DB for the selected year/week(s)
     useEffect(() => {
-        if (step !== 'preview' || !parsed || autoSkippedRef.current) return;
+        if (step !== "preview" || !parsed || autoSkippedRef.current) return;
         autoSkippedRef.current = true;
 
         async function autoSkipExisting() {
@@ -216,18 +221,24 @@ export default function UploadPage() {
 
     // Persist state whenever it changes
     useEffect(() => {
-        if (!parsed || !filename || step === 'done' || step === 'saving' || step === 'upload') return;
+        if (!parsed || !filename || step === "done" || step === "saving" || step === "upload")
+            return;
         try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify({
-                filename,
-                timestamp: Date.now(),
-                parsed,
-                step,
-                skipped: Array.from(skipped),
-                edits: Array.from(edits.entries()),
-                plantEdits: Array.from(plantEdits.entries()),
-            }));
-        } catch { /* quota exceeded */ }
+            localStorage.setItem(
+                CACHE_KEY,
+                JSON.stringify({
+                    filename,
+                    timestamp: Date.now(),
+                    parsed,
+                    step,
+                    skipped: Array.from(skipped),
+                    edits: Array.from(edits.entries()),
+                    plantEdits: Array.from(plantEdits.entries()),
+                })
+            );
+        } catch {
+            /* quota exceeded */
+        }
     }, [parsed, filename, step, skipped, edits, plantEdits]);
 
     function toggleSkip(i: number) {
@@ -344,8 +355,10 @@ export default function UploadPage() {
                 is_new: false,
                 uncertain: false,
                 has_changes:
-                    (existing.new_latin_name !== null && existing.new_latin_name !== plant.latin_name) ||
-                    (existing.new_harvest_instructions !== null && existing.new_harvest_instructions !== plant.harvest_instructions) ||
+                    (existing.new_latin_name !== null &&
+                        existing.new_latin_name !== plant.latin_name) ||
+                    (existing.new_harvest_instructions !== null &&
+                        existing.new_harvest_instructions !== plant.harvest_instructions) ||
                     (existing.new_tips !== null && existing.new_tips !== plant.tips),
             };
             return { ...prev, plant_info };
@@ -377,17 +390,12 @@ export default function UploadPage() {
             if (edit.skip) continue;
 
             const latin_name =
-                edit.latin_name !== undefined
-                    ? edit.latin_name
-                    : info.new_latin_name ?? undefined;
+                edit.latin_name !== undefined ? edit.latin_name : info.new_latin_name ?? undefined;
             const harvest_instructions =
                 edit.harvest_instructions !== undefined
                     ? edit.harvest_instructions
                     : info.new_harvest_instructions ?? undefined;
-            const tips =
-                edit.tips !== undefined
-                    ? edit.tips
-                    : info.new_tips ?? undefined;
+            const tips = edit.tips !== undefined ? edit.tips : info.new_tips ?? undefined;
 
             if (info.is_new) {
                 const category: PlantCategory = edit.category ?? info.new_category ?? "vegetable";
@@ -548,7 +556,9 @@ export default function UploadPage() {
                         onChange={(e) => setModel(e.target.value as GeminiModel)}
                         className="w-fit rounded border border-zinc-300 px-2 py-1 text-sm text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400">
                         {GEMINI_MODELS.map((m) => (
-                            <option key={m.value} value={m.value}>{m.label}</option>
+                            <option key={m.value} value={m.value}>
+                                {m.label}
+                            </option>
                         ))}
                     </select>
                     <PdfDropzone onFile={handleFile} loading={loading} />
@@ -567,7 +577,9 @@ export default function UploadPage() {
                                     : undefined
                             }
                             loading={loading}
-                            modelLabel={GEMINI_MODELS.find((m) => m.value === model)?.label}
+                            modelLabel={
+                                GEMINI_MODELS.find((m) => m.value === model)?.label ?? model
+                            }
                         />
                     )}
                 </div>
