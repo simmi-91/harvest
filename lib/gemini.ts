@@ -41,7 +41,6 @@ const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
 
 export const GEMINI_MODELS = [
     { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite (standard)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (reserve)' },
 ] as const;
 
 export type GeminiModel = typeof GEMINI_MODELS[number]['value'];
