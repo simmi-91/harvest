@@ -8,6 +8,7 @@ jest.mock('@/lib/db', () => ({
 
 jest.mock('@/lib/gemini', () => ({
     parseCombined: jest.fn(),
+    GEMINI_MODELS: [{ value: 'gemini-3.1-flash', label: 'Gemini 3.1 Flash' }],
 }));
 
 jest.mock('@/lib/pdfToImages', () => ({
