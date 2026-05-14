@@ -9,7 +9,7 @@ import { GEMINI_MODELS } from "@/lib/gemini";
 import type { GeminiModel } from "@/lib/gemini";
 
 
-function parseApiError(raw: string): { summary: string; details: string | null } {
+function parseApiError(raw: string, modelLabel?: string): { summary: string; details: string | null } {
     const statusMatch = raw.match(/\[(\d{3}\s+[^\]]+)\]/);
     const jsonStart = raw.lastIndexOf("[{");
     const textPart = (jsonStart > 0 ? raw.slice(0, jsonStart) : raw).trim();
@@ -23,9 +23,12 @@ function parseApiError(raw: string): { summary: string; details: string | null }
     }
     if (statusMatch) {
         const isDailyQuota = raw.includes("PerDay");
-        const retryMatch = !isDailyQuota && raw.match(/retry in ([\d.]+)s/i);
+        const is503 = raw.includes("[503");
+        const retryMatch = !isDailyQuota && !is503 && raw.match(/retry in ([\d.]+)s/i);
         const suffix = isDailyQuota
             ? " – daglig kvote nådd, prøv igjen i morgen formiddag"
+            : is503
+            ? ` – Modellen${modelLabel ? ` (${modelLabel})` : ""} er for øyeblikket overbelastet – prøv igjen senere eller velg en annen modell`
             : retryMatch
             ? ` – prøv igjen om ${Math.ceil(parseFloat(retryMatch[1]))}s`
             : "";
@@ -44,13 +47,15 @@ function ErrorCard({
     error,
     onRetry,
     loading,
+    modelLabel,
 }: {
     error: string;
     onRetry?: () => void;
     loading: boolean;
+    modelLabel?: string;
 }) {
     const [expanded, setExpanded] = useState(false);
-    const { summary, details } = parseApiError(error);
+    const { summary, details } = parseApiError(error, modelLabel);
     return (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <div className="flex items-start gap-3">
@@ -564,6 +569,7 @@ export default function UploadPage() {
                                     : undefined
                             }
                             loading={loading}
+                            modelLabel={GEMINI_MODELS.find((m) => m.value === model)?.label}
                         />
                     )}
                 </div>
