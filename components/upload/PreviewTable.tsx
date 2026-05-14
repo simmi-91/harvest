@@ -153,69 +153,95 @@ function LocationEditForm({ location, onSave, onCancel }: {
 
 // ── Location cell ─────────────────────────────────────────────────────────────
 
+const DEFAULT_NEW_LOCATION: ResolvedLocation = {
+    address: 'Ulvenpark',
+    position: null,
+    boxes: null,
+    location_note: null,
+    uncertain: false,
+};
+
 function LocationCell({ locations, entryIndex, onEditLocations }: {
     locations: ResolvedLocation[];
     entryIndex: number;
     onEditLocations: (index: number, locs: ResolvedLocation[]) => void;
 }) {
     const [editingLoc, setEditingLoc] = useState<number | null>(null);
-
-    if (locations.length === 0) return <span className="text-zinc-300 text-sm">-</span>;
+    const newLocIdx = locations.length;
 
     function saveLocation(locIdx: number, updated: ResolvedLocation) {
-        const next = locations.map((l, i) => (i === locIdx ? updated : l));
+        const next = locIdx === newLocIdx
+            ? [...locations, updated]
+            : locations.map((l, i) => (i === locIdx ? updated : l));
         onEditLocations(entryIndex, next);
         setEditingLoc(null);
     }
 
     return (
-        <ul className="space-y-1">
-            {locations.map((loc, j) => {
-                const addrShort = loc.address === 'Ulvenpark' ? 'UP' : loc.address === 'Ulven T' ? 'UT' : null;
-                const restParts: string[] = [];
-                if (loc.position) restParts.push(formatPosition(loc.address, loc.position));
-                if (loc.boxes && loc.boxes.length > 0) restParts.push(`kasse ${loc.boxes.join(', ')}`);
-                if (loc.location_note) restParts.push(loc.location_note);
-                const rest = restParts.join(', ');
+        <div className="flex flex-col gap-1">
+            {locations.length > 0 && (
+                <ul className="space-y-1">
+                    {locations.map((loc, j) => {
+                        const addrShort = loc.address === 'Ulvenpark' ? 'UP' : loc.address === 'Ulven T' ? 'UT' : null;
+                        const restParts: string[] = [];
+                        if (loc.position) restParts.push(formatPosition(loc.address, loc.position));
+                        if (loc.boxes && loc.boxes.length > 0) restParts.push(`kasse ${loc.boxes.join(', ')}`);
+                        if (loc.location_note) restParts.push(loc.location_note);
+                        const rest = restParts.join(', ');
 
-                return (
-                    <li key={j}>
-                        <div className="flex items-center gap-1">
-                            <span className={`text-sm ${loc.uncertain ? 'text-yellow-700' : 'text-zinc-700'}`}>
-                                {addrShort ? (
-                                    <>
-                                        <span className="sm:hidden">{addrShort}</span>
-                                        <span className="hidden sm:inline">{loc.address}</span>
-                                        {rest && `, ${rest}`}
-                                    </>
-                                ) : (rest || '-')}
-                            </span>
-                            {loc.uncertain && editingLoc !== j && (
-                                <button onClick={() => setEditingLoc(j)}
-                                    title="Klikk for å korrigere stedet"
-                                    className="text-yellow-500 hover:text-yellow-700 text-xs leading-5">
-                                    ⚠
-                                </button>
-                            )}
-                            {!loc.uncertain && (
-                                <button onClick={() => setEditingLoc(j)}
-                                    title="Rediger sted"
-                                    className="text-zinc-300 hover:text-zinc-500 text-xs leading-5 opacity-0 group-hover:opacity-100">
-                                    ✎
-                                </button>
-                            )}
-                        </div>
-                        {editingLoc === j && (
-                            <LocationEditForm
-                                location={loc}
-                                onSave={(updated) => saveLocation(j, updated)}
-                                onCancel={() => setEditingLoc(null)}
-                            />
-                        )}
-                    </li>
-                );
-            })}
-        </ul>
+                        return (
+                            <li key={j}>
+                                <div className="flex items-center gap-1">
+                                    <span className={`text-sm ${loc.uncertain ? 'text-yellow-700' : 'text-zinc-700'}`}>
+                                        {addrShort ? (
+                                            <>
+                                                <span className="sm:hidden">{addrShort}</span>
+                                                <span className="hidden sm:inline">{loc.address}</span>
+                                                {rest && `, ${rest}`}
+                                            </>
+                                        ) : (rest || '-')}
+                                    </span>
+                                    {loc.uncertain && editingLoc !== j && (
+                                        <button onClick={() => setEditingLoc(j)}
+                                            title="Klikk for å korrigere stedet"
+                                            className="text-yellow-500 hover:text-yellow-700 text-xs leading-5">
+                                            ⚠
+                                        </button>
+                                    )}
+                                    {!loc.uncertain && (
+                                        <button onClick={() => setEditingLoc(j)}
+                                            title="Rediger sted"
+                                            className="text-zinc-300 hover:text-zinc-500 text-xs leading-5 opacity-0 group-hover:opacity-100">
+                                            ✎
+                                        </button>
+                                    )}
+                                </div>
+                                {editingLoc === j && (
+                                    <LocationEditForm
+                                        location={loc}
+                                        onSave={(updated) => saveLocation(j, updated)}
+                                        onCancel={() => setEditingLoc(null)}
+                                    />
+                                )}
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+            {editingLoc !== newLocIdx && (
+                <button onClick={() => setEditingLoc(newLocIdx)}
+                    className="self-start text-xs text-blue-600 hover:text-blue-800">
+                    + Legg til sted
+                </button>
+            )}
+            {editingLoc === newLocIdx && (
+                <LocationEditForm
+                    location={DEFAULT_NEW_LOCATION}
+                    onSave={(updated) => saveLocation(newLocIdx, updated)}
+                    onCancel={() => setEditingLoc(null)}
+                />
+            )}
+        </div>
     );
 }
 
@@ -400,12 +426,10 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                             </div>
 
                             {/* Locations */}
-                            {displayLocations.length > 0 && (
-                                <div>
-                                    <div className="text-xs text-zinc-400 mb-0.5">Steder</div>
-                                    <LocationCell locations={displayLocations} entryIndex={i} onEditLocations={onEditLocations} />
-                                </div>
-                            )}
+                            <div>
+                                <div className="text-xs text-zinc-400 mb-0.5">Steder</div>
+                                <LocationCell locations={displayLocations} entryIndex={i} onEditLocations={onEditLocations} />
+                            </div>
 
                             {/* Add / change plant */}
                             {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm !== i && (
