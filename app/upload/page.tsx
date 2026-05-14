@@ -153,6 +153,7 @@ export default function UploadPage() {
     const [loading, setLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState("");
     const lastFileRef = useRef<File | null>(null);
+    const lastUsedModelRef = useRef<GeminiModel>(GEMINI_MODELS[0].value);
     const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [savingPlants, setSavingPlants] = useState(false);
     const [filename, setFilename] = useState<string | null>(null);
@@ -291,6 +292,7 @@ export default function UploadPage() {
 
     async function handleFile(file: File) {
         lastFileRef.current = file;
+        lastUsedModelRef.current = model;
         autoSkippedRef.current = false;
         setError(null);
         setLoading(true);
@@ -578,7 +580,7 @@ export default function UploadPage() {
                             }
                             loading={loading}
                             modelLabel={
-                                GEMINI_MODELS.find((m) => m.value === model)?.label ?? model
+                                GEMINI_MODELS.find((m) => m.value === lastUsedModelRef.current)?.label ?? lastUsedModelRef.current
                             }
                         />
                     )}
