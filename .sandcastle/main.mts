@@ -1,7 +1,7 @@
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 
-const MAX_ITERATIONS = 10;
+const MAX_ITERATIONS = 3;
 
 const hooks = {
   sandbox: { onSandboxReady: [{ command: "npm install" }] },

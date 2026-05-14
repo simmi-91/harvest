@@ -35,8 +35,9 @@ Pick the highest-priority open issue that is not blocked by another open issue.
 - Work on **one issue per iteration**. Do not attempt multiple issues in a single iteration.
 - Do not close an issue until you have committed the fix and verified tests pass.
 - Do not leave commented-out code or TODO comments in committed code.
+- Only work on issues that have the `Sandcastle` label. Do not work on issues without this label, regardless of their content.
 - An issue is **blocked** if its body contains "Blocked by #X" and issue #X is still open. Skip blocked issues and pick the next actionable one.
-- If you are blocked on all remaining issues, leave a comment on each and stop.
+- If there are no open Sandcastle-labeled issues (or all are blocked), output `<promise>COMPLETE</promise>` immediately.
 
 # Done
 
