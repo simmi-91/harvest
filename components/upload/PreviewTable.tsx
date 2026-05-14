@@ -228,18 +228,17 @@ function LocationCell({ locations, entryIndex, onEditLocations }: {
                     })}
                 </ul>
             )}
-            {editingLoc !== newLocIdx && (
-                <button onClick={() => setEditingLoc(newLocIdx)}
-                    className="self-start text-xs text-blue-600 hover:text-blue-800">
-                    + Legg til sted
-                </button>
-            )}
-            {editingLoc === newLocIdx && (
+            {editingLoc === newLocIdx ? (
                 <LocationEditForm
                     location={DEFAULT_NEW_LOCATION}
                     onSave={(updated) => saveLocation(newLocIdx, updated)}
                     onCancel={() => setEditingLoc(null)}
                 />
+            ) : (
+                <button onClick={() => setEditingLoc(newLocIdx)}
+                    className="self-start text-xs text-blue-600 hover:text-blue-800">
+                    + Legg til sted
+                </button>
             )}
         </div>
     );
