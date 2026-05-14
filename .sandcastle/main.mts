@@ -1,5 +1,6 @@
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import { execSync } from "node:child_process";
 
 const MAX_ITERATIONS = 3;
 
@@ -54,6 +55,17 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     });
 
     console.log("\nReview complete.");
+
+    try {
+      execSync(`git push origin ${branch}`, { stdio: "inherit" });
+      execSync(
+        `gh pr create --base main --head ${branch} --title "Sandcastle: ${branch}" --body "Automated PR from Sandcastle sequential-reviewer."`,
+        { stdio: "inherit" }
+      );
+      console.log("\nPR created.");
+    } catch (err) {
+      console.error("Failed to push or create PR:", err);
+    }
   } finally {
     await sandbox.close();
   }
