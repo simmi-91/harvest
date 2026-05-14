@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { asc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { plants as plantsTable, plantAliases as plantAliasesTable, locationAliases as locationAliasesTable } from '@/lib/schema';
-import { parseCombined, GEMINI_MODELS } from '@/lib/gemini';
-import type { GeminiModel } from '@/lib/gemini';
+import { parseCombined, GEMINI_MODELS, type GeminiModel } from '@/lib/gemini';
 import { pdfToJpegBase64 } from '@/lib/pdfToImages';
 import { matchPlant } from '@/lib/plantMatcher';
 import { resolveLocation } from '@/lib/locationResolver';
@@ -47,9 +46,8 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File | null;
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
-    const modelValues = GEMINI_MODELS.map((m) => m.value);
     const rawModel = formData.get('model');
-    const model: GeminiModel = modelValues.includes(rawModel as GeminiModel)
+    const model: GeminiModel = GEMINI_MODELS.some((m) => m.value === rawModel)
         ? (rawModel as GeminiModel)
         : GEMINI_MODELS[0].value;
     if (file.type !== 'application/pdf') {

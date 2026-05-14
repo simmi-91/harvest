@@ -5,9 +5,7 @@ import { PdfDropzone } from "@/components/upload/PdfDropzone";
 import { PreviewTable, type EntryEdits } from "@/components/upload/PreviewTable";
 import { PlantInfoReview, type PlantEdits } from "@/components/upload/PlantInfoReview";
 import type { ParseResponse, ResolvedLocation, PlantCategory, Plant } from "@/types";
-import { GEMINI_MODELS } from "@/lib/gemini";
-import type { GeminiModel } from "@/lib/gemini";
-
+import { GEMINI_MODELS, type GeminiModel } from "@/lib/gemini";
 
 function parseApiError(raw: string, modelLabel?: string): { summary: string; details: string | null } {
     const statusMatch = raw.match(/\[(\d{3}\s+[^\]]+)\]/);
