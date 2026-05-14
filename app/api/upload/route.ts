@@ -143,6 +143,22 @@ export async function POST(req: Request) {
         };
     });
 
+    const mergedEntries: ResolvedEntry[] = [];
+    const seenCertainPlantIds = new Map<number, ResolvedEntry>();
+    for (const entry of resolvedEntries) {
+        if (entry.plant_id !== null && !entry.uncertain) {
+            const existing = seenCertainPlantIds.get(entry.plant_id);
+            if (existing) {
+                existing.locations = [...existing.locations, ...entry.locations];
+            } else {
+                seenCertainPlantIds.set(entry.plant_id, entry);
+                mergedEntries.push(entry);
+            }
+        } else {
+            mergedEntries.push(entry);
+        }
+    }
+
     const resolvedPlantInfo: ResolvedPlantInfo[] = [];
     for (const info of parsed.plant_info) {
         info.harvest_instructions = normalizeFractions(info.harvest_instructions);
@@ -200,7 +216,7 @@ export async function POST(req: Request) {
     const response: ParseResponse = {
         year: parsed.year,
         weeks: parsed.weeks,
-        entries: resolvedEntries,
+        entries: mergedEntries,
         plant_info: resolvedPlantInfo,
     };
 
