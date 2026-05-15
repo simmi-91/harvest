@@ -57,6 +57,10 @@ function wordDiffRatio(oldText: string, newText: string): number {
     return 1 - (2 * equalCount) / (a.length + b.length);
 }
 
+function isPureDeletion(oldText: string, newText: string): boolean {
+    return lcsDiff(oldText.split(/(\s+)/), newText.split(/(\s+)/)).every(op => op.type !== 'insert');
+}
+
 function DiffSpans({ parts }: { parts: DiffPart[] }) {
     return (
         <span className="whitespace-pre-wrap break-words">
@@ -184,11 +188,13 @@ export function PlantInfoReview({ plantInfo, edits, onEditChange, saving, onConf
     const [aliasStates, setAliasStates] = useState<Map<number, AliasState>>(new Map());
     const [openReassign, setOpenReassign] = useState<number | null>(null);
 
-    // Auto-skip entries where all changed fields have < 5% diff
+    // Auto-skip entries where all changed fields have < 5% diff,
+    // or where tips/instructions changes are purely deletions (no new text added)
     useEffect(() => {
         plantInfo.forEach((info, i) => {
             if (info.is_new || !info.has_changes) return;
             if (edits.get(i)?.skip !== undefined) return; // user has set this explicitly
+
             const ratios: number[] = [];
             if (info.new_latin_name !== null && info.new_latin_name !== info.existing_latin_name && info.existing_latin_name)
                 ratios.push(wordDiffRatio(info.existing_latin_name, info.new_latin_name));
@@ -196,7 +202,26 @@ export function PlantInfoReview({ plantInfo, edits, onEditChange, saving, onConf
                 ratios.push(wordDiffRatio(info.existing_harvest_instructions, info.new_harvest_instructions));
             if (info.new_tips !== null && info.new_tips !== info.existing_tips && info.existing_tips)
                 ratios.push(wordDiffRatio(info.existing_tips, info.new_tips));
-            if (ratios.length > 0 && Math.max(...ratios) < 0.05)
+            if (ratios.length > 0 && Math.max(...ratios) < 0.05) {
+                onEditChange(i, { skip: true });
+                return;
+            }
+
+            const latinChanged = info.new_latin_name !== null && info.new_latin_name !== info.existing_latin_name;
+            const categoryChanged = info.new_category !== null && info.new_category !== info.existing_category;
+            if (latinChanged || categoryChanged) return;
+
+            const instructionsChanged = info.new_harvest_instructions !== null && info.new_harvest_instructions !== info.existing_harvest_instructions;
+            const tipsChanged = info.new_tips !== null && info.new_tips !== info.existing_tips;
+            if (!instructionsChanged && !tipsChanged) return;
+
+            const instructionsOk = !instructionsChanged || (info.existing_harvest_instructions && info.new_harvest_instructions
+                ? isPureDeletion(info.existing_harvest_instructions, info.new_harvest_instructions)
+                : true);
+            const tipsOk = !tipsChanged || (info.existing_tips && info.new_tips
+                ? isPureDeletion(info.existing_tips, info.new_tips)
+                : true);
+            if (instructionsOk && tipsOk)
                 onEditChange(i, { skip: true });
         });
     // eslint-disable-next-line react-hooks/exhaustive-deps
