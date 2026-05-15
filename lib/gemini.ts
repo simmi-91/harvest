@@ -60,7 +60,7 @@ JSON-skjema:
   "harvest_entries": [
     {
       "plant_name": "<navn>",
-      "category": null | "seed",
+      "category": null | "vegetable" | "greens" | "herb" | "flower" | "seed",
       "is_new": <bool>,
       "amount": null | "<mengde>",
       "harvest_note": null | "<notat>",
@@ -94,6 +94,8 @@ JSON-skjema:
 2. PLANTENAVN:
    - Fjern "NY!" fra slutten og sett is_new: true
    - Fjern "Frø:" fra starten og sett category: "seed"
+   - "frø" som suffiks (f.eks. "Krysantemum frø") → behold fullt navn, sett category: "seed". Én rad i tabellen = én entry, aldri to.
+   - Sett category basert på plantetypen: "vegetable" (rotvekster, kål, tomat, belgfrukter), "greens" (bladgrønnsaker, salat, spinat, ruccola), "herb" (urter, krydder), "flower" (blomster, prydplanter, f.eks. Krondill), "seed" (frø som høstes som frø). Sett null hvis du er usikker.
    - Notater i parentes etter plantenavn → harvest_note (f.eks. "(Kun i uke 28)" → "Kun i uke 28")
 
 3. MENGDE: Hvis mengden inneholder "/" (f.eks. "5 stk / 10 stk", "En håndfull / To håndfuller"),

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { PLANT_CATEGORIES } from '@/lib/plantCategories';
+import { Sparkles } from 'lucide-react';
+import { PLANT_CATEGORIES, PlantIcon } from '@/lib/plantCategories';
 import { ADDRESSES, POSITIONS_BY_ADDRESS, formatPosition } from '@/lib/locationUtils';
 import type { PlantCategory, ResolvedEntry, ResolvedLocation } from '@/types';
 
@@ -64,8 +65,8 @@ function EditableCell({ value, original, placeholder = '-', emptyWarning = false
     }
 
     return (
-        <button onClick={() => { setDraft(value ?? ''); setEditing(true); }} className="group text-left w-full" title="Klikk for å redigere">
-            <span className={`text-sm ${value ? 'text-zinc-700' : emptyWarning ? 'text-amber-600' : 'text-zinc-300'} group-hover:underline decoration-dotted`}>
+        <button onClick={() => { setDraft(value ?? ''); setEditing(true); }} className="text-left w-full" title="Klikk for å redigere">
+            <span className={`text-sm ${value ? 'text-zinc-700' : emptyWarning ? 'text-amber-600' : 'text-zinc-300'} underline decoration-dotted decoration-transparent group-hover/row:decoration-zinc-400 hover:!decoration-zinc-700`}>
                 {value ?? placeholder}{!value && emptyWarning && <span className="ml-1 text-amber-500">⚠</span>}
             </span>
             {value !== original && (
@@ -192,27 +193,22 @@ function LocationCell({ locations, entryIndex, onEditLocations }: {
                         return (
                             <li key={j}>
                                 <div className="flex items-center gap-1">
-                                    <span className={`text-sm ${loc.uncertain ? 'text-yellow-700' : 'text-zinc-700'}`}>
-                                        {addrShort ? (
-                                            <>
-                                                <span className="sm:hidden">{addrShort}</span>
-                                                <span className="hidden sm:inline">{loc.address}</span>
-                                                {rest && `, ${rest}`}
-                                            </>
-                                        ) : (rest || '-')}
-                                    </span>
+                                    <button onClick={() => setEditingLoc(j)} className="text-left" title="Rediger sted">
+                                        <span className={`text-sm ${loc.uncertain ? 'text-yellow-700' : 'text-zinc-700'} underline decoration-dotted decoration-transparent group-hover/row:decoration-zinc-400 hover:!decoration-zinc-700`}>
+                                            {addrShort ? (
+                                                <>
+                                                    <span className="sm:hidden">{addrShort}</span>
+                                                    <span className="hidden sm:inline">{loc.address}</span>
+                                                    {rest && `, ${rest}`}
+                                                </>
+                                            ) : (rest || '-')}
+                                        </span>
+                                    </button>
                                     {loc.uncertain && editingLoc !== j && (
                                         <button onClick={() => setEditingLoc(j)}
                                             title="Klikk for å korrigere stedet"
                                             className="text-yellow-500 hover:text-yellow-700 text-xs leading-5">
                                             ⚠
-                                        </button>
-                                    )}
-                                    {!loc.uncertain && (
-                                        <button onClick={() => setEditingLoc(j)}
-                                            title="Rediger sted"
-                                            className="text-zinc-300 hover:text-zinc-500 text-xs leading-5 opacity-0 group-hover:opacity-100">
-                                            ✎
                                         </button>
                                     )}
                                 </div>
@@ -394,16 +390,30 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         <PlantBadge entry={entry} duplicate={isDuplicate} />
-                                        <span className="font-medium text-zinc-900 text-sm">{entry.plant_name}</span>
-                                        {entry.category && (
-                                            <span className="text-xs text-zinc-400">{PLANT_CATEGORIES.find(c => c.value === entry.category)?.label}</span>
-                                        )}
+                                        <span
+                                            title={entry.plant_id && entry.category ? `${entry.plant_name} · ${PLANT_CATEGORIES.find(c => c.value === entry.category)?.label ?? ''}` : undefined}
+                                            className="inline-flex items-center gap-1.5"
+                                        >
+                                            {entry.plant_id && entry.category && (
+                                                <PlantIcon category={entry.category} size={14} className="shrink-0 text-zinc-400" />
+                                            )}
+                                            <span className="font-medium text-zinc-900 text-sm">{entry.plant_name}</span>
+                                        </span>
                                         {entry.is_new && (
                                             <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Ny</span>
                                         )}
                                     </div>
-                                    {entry.raw_plant_name !== entry.plant_name && (
-                                        <span className="text-xs text-zinc-400">PDF: {entry.raw_plant_name}</span>
+                                    {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm !== i && (
+                                        <button onClick={() => setOpenAddForm(i)} className="text-xs text-left text-blue-600 hover:text-blue-800">
+                                            {entry.plant_id ? 'endre plante' : '+ Legg til plante'}
+                                        </button>
+                                    )}
+                                    {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm === i && (
+                                        <SelectOrAddPlant
+                                            name={entry.plant_name}
+                                            onAdd={(id, name) => { onAddPlant(i, id, name); setOpenAddForm(null); }}
+                                            onCancel={() => setOpenAddForm(null)}
+                                        />
                                     )}
                                 </div>
                                 <button onClick={() => onToggleSkip(i)}
@@ -415,34 +425,34 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                             {/* Details */}
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                                 <div>
-                                    <div className="text-xs text-zinc-400 mb-0.5">Mengde</div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 mb-0.5">Mengde</div>
                                     <EditableCell value={displayAmount} original={entry.amount} emptyWarning={!isSkipped && !!entry.plant_id && displayAmount === null} onSave={(v) => onEdit(i, 'amount', v)} />
                                 </div>
                                 <div>
-                                    <div className="text-xs text-zinc-400 mb-0.5">Notat</div>
+                                    {(entry.raw_plant_name !== entry.plant_name || entry.gemini_category) && (
+                                        <div className="flex flex-wrap gap-x-3 mb-1 italic">
+                                            {entry.raw_plant_name !== entry.plant_name && (
+                                                <span title="Plantenavn slik det ble lest fra PDF" className="text-xs text-zinc-400">PDF: {entry.raw_plant_name}</span>
+                                            )}
+                                            {entry.gemini_category && (
+                                                <span className="inline-flex items-center gap-1 text-xs text-zinc-400">
+                                                    <Sparkles size={11} />
+                                                    {PLANT_CATEGORIES.find(c => c.value === entry.gemini_category)?.label}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 mb-0.5">Notat</div>
                                     <EditableCell value={displayNote} original={entry.harvest_note} placeholder="-" onSave={(v) => onEdit(i, 'harvest_note', v)} />
                                 </div>
                             </div>
 
                             {/* Locations */}
                             <div>
-                                <div className="text-xs text-zinc-400 mb-0.5">Steder</div>
+                                <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 mb-0.5">Steder</div>
                                 <LocationCell locations={displayLocations} entryIndex={i} onEditLocations={onEditLocations} />
                             </div>
 
-                            {/* Add / change plant */}
-                            {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm !== i && (
-                                <button onClick={() => setOpenAddForm(i)} className="text-xs text-left text-blue-600 hover:text-blue-800">
-                                    {entry.plant_id ? 'endre plante' : '+ Legg til plante'}
-                                </button>
-                            )}
-                            {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm === i && (
-                                <SelectOrAddPlant
-                                    name={entry.plant_name}
-                                    onAdd={(id, name) => { onAddPlant(i, id, name); setOpenAddForm(null); }}
-                                    onCancel={() => setOpenAddForm(null)}
-                                />
-                            )}
                         </div>
                     );
                 })}
@@ -470,7 +480,7 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                             const isDuplicate = !!entry.plant_id && duplicatePlantIds.has(entry.plant_id);
 
                             return (
-                                <tr key={i} className={`group transition-colors ${isSkipped ? 'opacity-40 bg-zinc-50' : !entry.plant_id ? 'bg-red-50' : isDuplicate ? 'bg-orange-50' : ''}`}>
+                                <tr key={i} className={`group/row transition-colors ${isSkipped ? 'opacity-40 bg-zinc-50' : !entry.plant_id ? 'bg-red-50' : isDuplicate ? 'bg-orange-50' : ''}`}>
                                     {/* Status */}
                                     <td className="px-3 py-2 whitespace-nowrap align-top">
                                         <PlantBadge entry={entry} duplicate={isDuplicate} />
@@ -480,16 +490,31 @@ export function PreviewTable({ entries, edits, skipped, onToggleSkip, onAddPlant
                                     <td className="px-3 py-2 align-top">
                                         <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className="font-medium text-zinc-900">{entry.plant_name}</span>
-                                                {entry.category && (
-                                                    <span className="text-xs text-zinc-400">{PLANT_CATEGORIES.find(c => c.value === entry.category)?.label}</span>
-                                                )}
+                                                <span
+                                                    title={entry.plant_id && entry.category ? `${entry.plant_name} · ${PLANT_CATEGORIES.find(c => c.value === entry.category)?.label ?? ''}` : undefined}
+                                                    className="inline-flex items-center gap-1.5"
+                                                >
+                                                    {entry.plant_id && entry.category && (
+                                                        <PlantIcon category={entry.category} size={14} className="shrink-0 text-zinc-400" />
+                                                    )}
+                                                    <span className="font-medium text-zinc-900">{entry.plant_name}</span>
+                                                </span>
                                                 {entry.is_new && (
                                                     <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Ny</span>
                                                 )}
                                             </div>
-                                            {entry.raw_plant_name !== entry.plant_name && (
-                                                <span className="text-xs text-zinc-400">PDF: {entry.raw_plant_name}</span>
+                                            {(entry.raw_plant_name !== entry.plant_name || entry.gemini_category) && (
+                                                <div className="flex flex-wrap gap-x-3 italic">
+                                                    {entry.raw_plant_name !== entry.plant_name && (
+                                                        <span title="Plantenavn slik det ble lest fra PDF" className="text-xs text-zinc-400">PDF: {entry.raw_plant_name}</span>
+                                                    )}
+                                                    {entry.gemini_category && (
+                                                        <span title="Kategori foreslått av Gemini" className="inline-flex items-center gap-1 text-xs text-zinc-400">
+                                                            <Sparkles size={11} />
+                                                            {PLANT_CATEGORIES.find(c => c.value === entry.gemini_category)?.label}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
                                             {(!entry.plant_id || entry.uncertain || isDuplicate) && openAddForm !== i && (
                                                 <button onClick={() => setOpenAddForm(i)} className="text-xs text-left text-blue-600 hover:text-blue-800 mt-0.5">

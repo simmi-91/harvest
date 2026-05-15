@@ -101,6 +101,7 @@ export interface ResolvedEntry {
     plant_name: string;
     raw_plant_name: string;
     category: PlantCategory | null;
+    gemini_category: PlantCategory | null;
     amount: string | null;
     harvest_note: string | null;
     is_new: boolean;
