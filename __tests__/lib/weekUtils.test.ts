@@ -49,15 +49,9 @@ describe('getDisplayWeek', () => {
         expect(result).toEqual({ year: 2026, week: 21 });
     });
 
-    it('crosses year boundary correctly on Monday of week 1', () => {
+    it('returns week 1 on Monday of week 2 at year start', () => {
         // 2026-01-05 is Monday of ISO week 2 → should show week 1
         const result = getDisplayWeek(new Date('2026-01-05'));
         expect(result).toEqual({ year: 2026, week: 1 });
-    });
-
-    it('crosses year boundary correctly on Monday of week 1 (first week of year)', () => {
-        // 2025-01-06 is Monday of ISO week 2 2025 → should show week 1
-        const result = getDisplayWeek(new Date('2025-01-06'));
-        expect(result).toEqual({ year: 2025, week: 1 });
     });
 });
