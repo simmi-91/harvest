@@ -5,6 +5,7 @@ import { harvests as harvestsTable, harvestLocations } from '@/lib/schema';
 import type { HarvestWithDetails, PlantCategory } from '@/types';
 import { FilterBar } from '@/components/harvest/FilterBar';
 import { HarvestTable } from '@/components/harvest/HarvestTable';
+import { getDisplayWeek } from '@/lib/weekUtils';
 
 function formatNorwegianDate(date: Date): string {
     const str = new Intl.DateTimeFormat('nb-NO', {
@@ -13,16 +14,6 @@ function formatNorwegianDate(date: Date): string {
         month: 'long',
     }).format(date);
     return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-function getCurrentWeek(): { year: number; week: number } {
-    const now = new Date();
-    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return { year: d.getUTCFullYear(), week };
 }
 
 async function getActiveFilters(year: number, week: number): Promise<{ addresses: string[]; positions: string[] }> {
@@ -118,7 +109,7 @@ type SearchParams = Promise<{
 
 export default async function Home({ searchParams }: { searchParams: SearchParams }) {
     const params = await searchParams;
-    const current = getCurrentWeek();
+    const current = getDisplayWeek();
 
     const year = params.year ? parseInt(params.year) : current.year;
     const week = params.week ? parseInt(params.week) : current.week;
