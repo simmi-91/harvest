@@ -17,7 +17,7 @@
     "db:push": "drizzle-kit push",
     "typecheck": "tsc --noEmit",
     "gemini:list-models": "npx tsx --env-file=.env.local scripts/check-gemini-models.mts",
-    "sandcastle": "npx tsx .sandcastle/main.mts"
+    "sandcastle": "npx tsx --env-file=.sandcastle/.env .sandcastle/main.mts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
