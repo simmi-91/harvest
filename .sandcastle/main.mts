@@ -23,6 +23,9 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         // without an ANTHROPIC_API_KEY
         { hostPath: "~/.claude", sandboxPath: "~/.claude" },
       ],
+      env: {
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? "",
+      },
     }),
     hooks,
     copyToWorktree,
