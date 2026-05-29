@@ -540,32 +540,32 @@ export function HarvestTable({ initialHarvests }: { initialHarvests: HarvestWith
                                                 {harvest.amount && (
                                                     <span className="mr-3">{harvest.amount}</span>
                                                 )}
-                                                {harvest.locations.map((loc) => {
-                                                    const label: string[] = [];
-                                                    if (loc.position)
-                                                        label.push(
-                                                            formatPosition(
-                                                                loc.address,
-                                                                loc.position
-                                                            )
-                                                        );
-                                                    if (loc.boxes?.length)
-                                                        label.push(`kasse ${loc.boxes.join(", ")}`);
-                                                    if (loc.location_note)
-                                                        label.push(loc.location_note);
-                                                    const multiLoc = harvest.locations.length > 1;
-                                                    const Elem = multiLoc ? "div" : "span";
-                                                    return (
-                                                        <Elem
-                                                            key={loc.id}
-                                                            className={`${
-                                                                multiLoc ? "flex" : "inline-flex"
-                                                            } items-center gap-1 mr-3`}>
-                                                            <AddressBadge address={loc.address} />
-                                                            {label.join(" · ")}
-                                                        </Elem>
-                                                    );
-                                                })}
+                                                {harvest.locations.length > 0 && (
+                                                    <ul className="contents">
+                                                        {harvest.locations.map((loc) => {
+                                                            const label: string[] = [];
+                                                            if (loc.position)
+                                                                label.push(
+                                                                    formatPosition(
+                                                                        loc.address,
+                                                                        loc.position
+                                                                    )
+                                                                );
+                                                            if (loc.boxes?.length)
+                                                                label.push(`kasse ${loc.boxes.join(", ")}`);
+                                                            if (loc.location_note)
+                                                                label.push(loc.location_note);
+                                                            return (
+                                                                <li
+                                                                    key={loc.id}
+                                                                    className="inline-flex items-center gap-1 mr-3">
+                                                                    <AddressBadge address={loc.address} />
+                                                                    {label.join(" · ")}
+                                                                </li>
+                                                            );
+                                                        })}
+                                                    </ul>
+                                                )}
                                                 {harvest.harvest_note && (
                                                     <div className="italic text-zinc-600">
                                                         {harvest.harvest_note}

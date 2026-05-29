@@ -18,12 +18,11 @@ export function PdfDropzone({ onFile, loading }: PdfDropzoneProps) {
     }
 
     return (
-        <div
-            role="button"
-            tabIndex={0}
+        <button
+            type="button"
             aria-label="Last opp PDF"
-            onClick={() => !loading && inputRef.current?.click()}
-            onKeyDown={(e) => e.key === 'Enter' && !loading && inputRef.current?.click()}
+            disabled={loading}
+            onClick={() => inputRef.current?.click()}
             onDragOver={(e) => {
                 e.preventDefault();
                 if (!loading) setIsDragging(true);
@@ -35,7 +34,7 @@ export function PdfDropzone({ onFile, loading }: PdfDropzoneProps) {
                 if (!loading) handleFiles(e.dataTransfer.files);
             }}
             className={[
-                'flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 sm:p-12 text-center cursor-pointer transition-colors',
+                'w-full flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 sm:p-12 text-center cursor-pointer transition-colors',
                 isDragging
                     ? 'border-zinc-500 bg-zinc-50'
                     : 'border-zinc-300 bg-white hover:border-zinc-400 hover:bg-zinc-50',
@@ -80,6 +79,6 @@ export function PdfDropzone({ onFile, loading }: PdfDropzoneProps) {
                     </div>
                 </>
             )}
-        </div>
+        </button>
     );
 }
