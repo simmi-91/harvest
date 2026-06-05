@@ -41,3 +41,14 @@ body {
   color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+
+dialog::backdrop {
+  background-color: rgba(36, 37, 36, 0.5);
+}

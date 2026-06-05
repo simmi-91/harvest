@@ -66,7 +66,8 @@ export function FilterBar({ year, week, address, position, sort, availableYears,
     return (
         <div className="flex flex-col gap-2.5">
             {/* Year + Week + Sort */}
-            <div className="flex gap-2 flex-wrap">
+            <fieldset className="flex gap-2 flex-wrap">
+                <legend className="sr-only">Periode og sortering</legend>
                 <select
                     value={String(year)}
                     onChange={(e) => navigate({ year: e.target.value })}
@@ -96,10 +97,11 @@ export function FilterBar({ year, week, address, position, sort, availableYears,
                         <option value="kategori">Kategori</option>
                     </select>
                 </label>
-            </div>
+            </fieldset>
 
             {/* Address pills */}
-            <div className="flex flex-wrap gap-1.5">
+            <fieldset className="flex flex-wrap gap-1.5">
+                <legend className="sr-only">Filtrer etter sted</legend>
                 <button
                     onClick={() => navigate({ address: undefined, position: undefined })}
                     className={`${pillBase} ${!address ? pillActive : pillInactive}`}>
@@ -118,10 +120,11 @@ export function FilterBar({ year, week, address, position, sort, availableYears,
                         </button>
                     );
                 })}
-            </div>
+            </fieldset>
 
             {/* Position pills */}
-            <div className="flex flex-wrap gap-1.5">
+            <fieldset className="flex flex-wrap gap-1.5">
+                <legend className="sr-only">Filtrer etter lokasjon</legend>
                 <button
                     onClick={() => navigate({ position: undefined })}
                     className={`${pillBase} ${!position ? pillActive : pillInactive}`}>
@@ -141,7 +144,7 @@ export function FilterBar({ year, week, address, position, sort, availableYears,
                         </button>
                     );
                 })}
-            </div>
+            </fieldset>
         </div>
     );
 }
