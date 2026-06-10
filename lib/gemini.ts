@@ -90,7 +90,7 @@ JSON-skjema:
 
 === REGLER FOR HØSTETABELLER (harvest_entries) ===
 
-1. UKER: Hent ukenummer KUN fra forsiden (side 1). Ignorer ukenummer i seksjonsoverskrifter på andre sider – disse kan inneholde skrivefeil. "Uke 20" → [20]. "Uke 28-30" → [28, 29, 30]. "Uke 28+29" → [28, 29]. Inkluder høsteinnslag fra ALLE seksjoner/tabeller i dokumentet uavhengig av hvilke ukenummer som vises i seksjonstitler.
+1. UKER: Finn ukenummer KUN på første side (forsiden). Ukenummer som vises i seksjonsoverskrifter på andre sider skal ALDRI legges til i weeks-feltet – de kan inneholde skrivefeil. "Uke 20" → [20]. "Uke 28-30" → [28, 29, 30]. "Uke 28+29" → [28, 29]. Inkluder harvest_entries fra ALLE tabeller i dokumentet uansett hvilke ukenummer seksjonstitlene viser.
 
 2. PLANTENAVN:
    - Fjern "NY!" fra slutten og sett is_new: true
@@ -211,9 +211,10 @@ export async function parseCombined(jpegBase64List: string[], model: GeminiModel
         try {
             const result = await geminiModel.generateContent([
                 { text: PROMPT },
-                ...jpegBase64List.map((data) => ({
-                    inlineData: { data, mimeType: 'image/jpeg' as const },
-                })),
+                ...jpegBase64List.flatMap((data, i) => [
+                    { text: `Side ${i + 1}:` },
+                    { inlineData: { data, mimeType: 'image/jpeg' as const } },
+                ]),
             ]);
 
             const text = result.response.text();
