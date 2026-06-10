@@ -2,16 +2,12 @@
 
 A web app for tracking weekly harvest reports from a community garden.
 
-## Status
+### Screenshots
 
-🚧 **In Development**
-
-## Features (Planned)
-
--   Upload PDF harvest reports with AI-powered data extraction
--   View weekly harvest overview with filtering by location
--   Plant information with harvest instructions
--   Import historical data from previous seasons
+<img src="screenshots/overview.png" alt="Page with harvest overview" width="500">
+<img src="screenshots/plants.png" alt="Page listing all plants" width="500">
+<img src="screenshots/upload-idle.png" alt="Upload page before file select" width="500">
+<img src="screenshots/upload-data.png" alt="Upload page with parsed data" width="500">
 
 ## Tech Stack
 
