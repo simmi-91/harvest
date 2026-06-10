@@ -144,13 +144,20 @@ export async function POST(req: Request) {
         };
     });
 
+    function locationKey(loc: ResolvedLocation): string {
+        const boxes = loc.boxes ? [...loc.boxes].sort((a, b) => a - b).join(',') : '';
+        return `${loc.address}|${loc.position ?? ''}|${boxes}|${loc.location_note ?? ''}`;
+    }
+
     const mergedEntries: ResolvedEntry[] = [];
     const seenCertainPlantIds = new Map<number, ResolvedEntry>();
     for (const entry of resolvedEntries) {
         if (entry.plant_id !== null && !entry.uncertain) {
             const existing = seenCertainPlantIds.get(entry.plant_id);
             if (existing) {
-                existing.locations = [...existing.locations, ...entry.locations];
+                const existingKeys = new Set(existing.locations.map(locationKey));
+                const newLocs = entry.locations.filter((l) => !existingKeys.has(locationKey(l)));
+                existing.locations = [...existing.locations, ...newLocs];
             } else {
                 seenCertainPlantIds.set(entry.plant_id, entry);
                 mergedEntries.push(entry);
