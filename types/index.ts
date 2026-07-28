@@ -83,6 +83,7 @@ export interface GeminiPlantInfo {
 export interface GeminiCombinedResult {
     year: number;
     weeks: number[];
+    other_weeks: number[];
     harvest_entries: GeminiEntry[];
     plant_info: GeminiPlantInfo[];
 }
@@ -129,6 +130,7 @@ export interface ResolvedPlantInfo {
 export interface ParseResponse {
     year: number;
     weeks: number[];
+    other_weeks: number[];
     entries: ResolvedEntry[];
     plant_info: ResolvedPlantInfo[];
 }

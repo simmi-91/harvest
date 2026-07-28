@@ -224,6 +224,7 @@ export async function POST(req: Request) {
     const response: ParseResponse = {
         year: parsed.year,
         weeks: parsed.weeks,
+        other_weeks: parsed.other_weeks,
         entries: mergedEntries,
         plant_info: resolvedPlantInfo,
     };

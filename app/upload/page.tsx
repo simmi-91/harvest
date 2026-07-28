@@ -168,6 +168,7 @@ export default function UploadPage() {
         failed: number;
     } | null>(null);
     const [confirmSave, setConfirmSave] = useState(false);
+    const [multiWeekMode, setMultiWeekMode] = useState<"all" | "first" | "last">("last");
     const autoSkippedRef = useRef(false);
 
     // Restore from cache on mount
@@ -294,6 +295,7 @@ export default function UploadPage() {
         lastFileRef.current = file;
         lastUsedModelRef.current = model;
         autoSkippedRef.current = false;
+        setMultiWeekMode("last");
         setError(null);
         setLoading(true);
         startLoadingMessages();
@@ -459,6 +461,17 @@ export default function UploadPage() {
         if (!parsed) return;
         setStep("saving");
 
+        const combinedNote =
+            parsed.weeks.length > 1 ? `Kombinert uke ${parsed.weeks.join("+")}` : null;
+        const weeksToSave =
+            parsed.weeks.length > 1
+                ? multiWeekMode === "all"
+                    ? parsed.weeks
+                    : multiWeekMode === "first"
+                    ? [parsed.weeks[0]]
+                    : [parsed.weeks[parsed.weeks.length - 1]]
+                : parsed.weeks;
+
         let saved = 0,
             failed = 0,
             skippedCount = 0;
@@ -472,11 +485,16 @@ export default function UploadPage() {
 
             const edit = edits.get(i) ?? {};
             const amount = edit.amount !== undefined ? edit.amount : entry.amount;
-            const harvest_note =
+            const rawNote =
                 edit.harvest_note !== undefined ? edit.harvest_note : entry.harvest_note;
+            const harvest_note = combinedNote
+                ? rawNote
+                    ? `${rawNote} · ${combinedNote}`
+                    : combinedNote
+                : rawNote;
             const locations = edit.locations ?? entry.locations;
 
-            for (const week of parsed.weeks) {
+            for (const week of weeksToSave) {
                 const res = await fetch("/api/harvests", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -535,6 +553,7 @@ export default function UploadPage() {
         setEdits(new Map());
         setSkipped(new Set());
         setPlantEdits(new Map());
+        setMultiWeekMode("last");
         setStep("upload");
     }
 
@@ -653,9 +672,11 @@ export default function UploadPage() {
                                         <span className="text-zinc-700">
                                             Lagre {saveableCount} innslag for{" "}
                                             <strong>
-                                                {parsed.weeks.length === 1
-                                                    ? `uke ${parsed.weeks[0]}`
-                                                    : `uke ${parsed.weeks.join("+")}`}
+                                                {parsed.weeks.length <= 1 || multiWeekMode === "all"
+                                                    ? parsed.weeks.length === 1
+                                                        ? `uke ${parsed.weeks[0]}`
+                                                        : `uke ${parsed.weeks.join("+")}`
+                                                    : `uke ${multiWeekMode === "first" ? parsed.weeks[0] : parsed.weeks[parsed.weeks.length - 1]}`}
                                                 , {parsed.year}
                                             </strong>
                                             ?
@@ -687,7 +708,7 @@ export default function UploadPage() {
                                     className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed">
                                     Lagre {saveableCount}{" "}
                                     {saveableCount === 1 ? "innslag" : "innslag"}
-                                    {parsed.weeks.length > 1 && ` × ${parsed.weeks.length} uker`}
+                                    {parsed.weeks.length > 1 && multiWeekMode === "all" && ` × ${parsed.weeks.length} uker`}
                                 </button>
                             )}
                         </div>
@@ -713,6 +734,55 @@ export default function UploadPage() {
                             </div>
                         ) : null;
                     })()}
+
+                    {parsed.other_weeks.length > 0 && (
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                            PDFen inneholder referanser til uke {parsed.other_weeks.join(" og ")} på andre sider enn forsiden – sjekk PDFen selv for å se om noen innslag bør hoppes over.
+                        </div>
+                    )}
+
+                    {parsed.weeks.length > 1 && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            <p className="font-medium mb-2">
+                                Kombinert høstemelding – uke {parsed.weeks.join(" og ")}
+                            </p>
+                            <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-5">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="multiWeekMode"
+                                        checked={multiWeekMode === "last"}
+                                        onChange={() => setMultiWeekMode("last")}
+                                        className="accent-amber-700"
+                                    />
+                                    Lagre for uke {parsed.weeks[parsed.weeks.length - 1]} (anbefalt)
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="multiWeekMode"
+                                        checked={multiWeekMode === "first"}
+                                        onChange={() => setMultiWeekMode("first")}
+                                        className="accent-amber-700"
+                                    />
+                                    Lagre for uke {parsed.weeks[0]}
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="multiWeekMode"
+                                        checked={multiWeekMode === "all"}
+                                        onChange={() => setMultiWeekMode("all")}
+                                        className="accent-amber-700"
+                                    />
+                                    Lagre for alle uker (mengden gjentas per uke)
+                                </label>
+                            </div>
+                            <p className="mt-2 text-amber-700 text-xs">
+                                «Kombinert uke {parsed.weeks.join("+")}» legges til i høstenotatet uansett valg.
+                            </p>
+                        </div>
+                    )}
 
                     <PreviewTable
                         entries={parsed.entries}

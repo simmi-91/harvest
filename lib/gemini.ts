@@ -25,6 +25,7 @@ const GeminiEntrySchema = z.object({
 const GeminiCombinedResultSchema = z.object({
     year: z.number(),
     weeks: z.array(z.number()),
+    other_weeks: z.array(z.number()).optional().default([]),
     harvest_entries: z.array(GeminiEntrySchema),
     plant_info: z.array(
         z.object({
@@ -58,6 +59,7 @@ JSON-skjema:
 {
   "year": <heltall>,
   "weeks": [<heltall>, ...],
+  "other_weeks": [<heltall>, ...],
   "harvest_entries": [
     {
       "plant_name": "<navn>",
@@ -90,7 +92,7 @@ JSON-skjema:
 
 === REGLER FOR HØSTETABELLER (harvest_entries) ===
 
-1. UKER: Finn ukenummer KUN på første side (forsiden). Ukenummer som vises i seksjonsoverskrifter på andre sider skal ALDRI legges til i weeks-feltet – de kan inneholde skrivefeil. "Uke 20" → [20]. "Uke 28-30" → [28, 29, 30]. "Uke 28+29" → [28, 29]. Inkluder harvest_entries fra ALLE tabeller i dokumentet uansett hvilke ukenummer seksjonstitlene viser.
+1. UKER: Finn ukenummer KUN på første side (forsiden/side 1) og legg dem i weeks-feltet. "Uke 20" → [20]. "Uke 28-30" → [28, 29, 30]. "Uke 28+29" → [28, 29]. Legg alle andre ukenummer du finner på andre sider (tabellenes titler, seksjonsoverskrifter, innledende tekst osv.) i other_weeks-feltet i stedet – aldri i weeks. Inkluder harvest_entries fra ALLE tabeller i dokumentet uansett hvilke ukenummer tabellenes titler eller seksjonstitlene viser. Eksempel: en tabell på side 3 med tittel "Høstemelding uke 28+29" → other_weeks: [28, 29], IKKE weeks.
 
 2. PLANTENAVN:
    - Fjern "NY!" fra slutten og sett is_new: true
