@@ -105,6 +105,7 @@ jobs:
 
             if [ "$HEALTHY" = "true" ]; then
               echo "Health check passed."
+              sudo -u $DEPLOY_USER pm2 save
               sudo -u $DEPLOY_USER pm2 status
               docker compose -f /var/www/harvest/docker-compose.prod.yml ps
             else
