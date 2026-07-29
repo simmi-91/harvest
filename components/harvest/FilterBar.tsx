@@ -137,7 +137,10 @@ export function FilterBar({ year, week, address, position, sort, availableYears,
                     return (
                         <button
                             key={p}
-                            onClick={() => navigate({ position: isSelected ? undefined : p })}
+                            onClick={() => navigate({
+                                position: isSelected ? undefined : p,
+                                address: isSelected ? undefined : addr,
+                            })}
                             className={`${pillBase} ${isSelected ? pillActive : pillInactive} ${!isAvailable ? "opacity-40" : ""}`}>
                             <AddressBadge address={addr} />
                             {positionLabel(p)}
