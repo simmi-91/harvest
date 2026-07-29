@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Settings } from 'lucide-react';
 
 const LINKS = [
     { href: '/', label: 'Oversikt' },
@@ -11,6 +12,7 @@ const LINKS = [
 
 export function Navigation() {
     const pathname = usePathname();
+    const settingsActive = pathname.startsWith('/settings');
 
     return (
         <nav className="border-b" style={{ background: 'rgba(240, 238, 226, 0.9)', borderColor: 'var(--color3)' }}>
@@ -21,7 +23,7 @@ export function Navigation() {
                         <Link
                             key={href}
                             href={href}
-                            className="flex-1 flex items-center justify-center text-xs font-semibold uppercase tracking-widest transition-colors"
+                            className="flex-1 flex items-center justify-center text-xs font-semibold uppercase tracking-widest transition-colors hover:bg-black/5"
                             style={{
                                 color: active ? 'var(--color6)' : 'var(--color2)',
                                 borderBottom: active ? '3px solid var(--color6)' : '3px solid transparent',
@@ -31,6 +33,17 @@ export function Navigation() {
                         </Link>
                     );
                 })}
+                <Link
+                    href="/settings"
+                    className="flex items-center gap-1.5 px-3 text-xs font-semibold uppercase tracking-widest transition-colors hover:bg-black/5"
+                    style={{
+                        color: settingsActive ? 'var(--color6)' : 'var(--color2)',
+                        borderBottom: settingsActive ? '3px solid var(--color6)' : '3px solid transparent',
+                    }}
+                >
+                    <Settings size={18} />
+                    {settingsActive && 'Innstillinger'}
+                </Link>
             </div>
         </nav>
     );
