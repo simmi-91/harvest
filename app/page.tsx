@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { harvests as harvestsTable, harvestLocations } from '@/lib/schema';
 import type { HarvestWithDetails, PlantCategory } from '@/types';
 import { FilterBar } from '@/components/harvest/FilterBar';
-import { HarvestTable } from '@/components/harvest/HarvestTable';
+import { HarvestView } from '@/components/harvest/HarvestView';
 import { getDisplayWeek } from '@/lib/weekUtils';
 
 function formatNorwegianDate(date: Date): string {
@@ -155,31 +155,20 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
     return (
         <main className="max-w-4xl mx-auto px-4 py-2 sm:py-4 w-full">
             <div className="flex flex-col gap-4">
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text)' }}>
-                        Høstemelding
-                    </h1>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>
-                        {todayStr} · uke {current.week}
-                    </p>
-                </div>
-
-                <FilterBar year={year} week={week} address={address} position={position} sort={sort} availableYears={availableYears} availableWeeks={availableWeeks} activeAddresses={activeAddresses} activePositions={activePositions} />
+                <HarvestView
+                    todayStr={todayStr}
+                    currentWeek={current.week}
+                    initialHarvests={harvestData}
+                    year={year}
+                    week={week}
+                >
+                    <FilterBar year={year} week={week} address={address} position={position} sort={sort} availableYears={availableYears} availableWeeks={availableWeeks} activeAddresses={activeAddresses} activePositions={activePositions} />
+                </HarvestView>
 
                 {dbError && (
                     <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                         Klarte ikke å hente data fra databasen. Sjekk at databasen kjører.
                     </div>
-                )}
-
-                {!dbError && harvestData.length === 0 && (
-                    <p className="text-zinc-500 text-sm py-8 text-center">
-                        Ingen høsting registrert for uke {week}, {year}.
-                    </p>
-                )}
-
-                {!dbError && harvestData.length > 0 && (
-                    <HarvestTable initialHarvests={harvestData} />
                 )}
             </div>
         </main>
