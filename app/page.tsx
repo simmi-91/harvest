@@ -161,6 +161,8 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                     initialHarvests={harvestData}
                     year={year}
                     week={week}
+                    address={address}
+                    position={position}
                 >
                     <FilterBar year={year} week={week} address={address} position={position} sort={sort} availableYears={availableYears} availableWeeks={availableWeeks} activeAddresses={activeAddresses} activePositions={activePositions} />
                 </HarvestView>

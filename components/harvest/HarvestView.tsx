@@ -11,10 +11,12 @@ interface HarvestViewProps {
     initialHarvests: HarvestWithDetails[];
     year: number;
     week: number;
+    address?: string;
+    position?: string;
     children?: React.ReactNode;
 }
 
-export function HarvestView({ todayStr, currentWeek, initialHarvests, year, week, children }: HarvestViewProps) {
+export function HarvestView({ todayStr, currentWeek, initialHarvests, year, week, address, position, children }: HarvestViewProps) {
     const [editMode, setEditMode] = useState(false);
 
     return (
@@ -54,6 +56,8 @@ export function HarvestView({ todayStr, currentWeek, initialHarvests, year, week
                 year={year}
                 week={week}
                 editMode={editMode}
+                address={address}
+                position={position}
             />
         </>
     );

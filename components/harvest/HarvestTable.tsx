@@ -482,16 +482,53 @@ function AddHarvestForm({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+// Ranks how well a location matches the active address/position filter:
+// 0 = matches (or filter doesn't constrain that field), 1 = right address but
+// wrong position, 2 = wrong address entirely. Used to both sort the closest
+// match to the top and to dim anything that isn't a full match.
+function locationMatchRank(
+    loc: { address: string; position: string | null },
+    address: string | undefined,
+    position: string | undefined
+): number {
+    if (address && loc.address !== address) return 2;
+    if (position && loc.position !== null && loc.position !== position) return 1;
+    return 0;
+}
+
+function isLocationDimmed(
+    loc: { address: string; position: string | null },
+    address: string | undefined,
+    position: string | undefined
+): boolean {
+    return locationMatchRank(loc, address, position) !== 0;
+}
+
+function sortLocationsByFilterMatch<T extends { address: string; position: string | null }>(
+    locations: T[],
+    address: string | undefined,
+    position: string | undefined
+): T[] {
+    if (!address && !position) return locations;
+    return [...locations].sort(
+        (a, b) => locationMatchRank(a, address, position) - locationMatchRank(b, address, position)
+    );
+}
+
 export function HarvestTable({
     initialHarvests,
     year,
     week,
     editMode,
+    address,
+    position,
 }: {
     initialHarvests: HarvestWithDetails[];
     year: number;
     week: number;
     editMode: boolean;
+    address?: string;
+    position?: string;
 }) {
     const [harvests, setHarvests] = useState(initialHarvests);
     const [done, setDone] = useState<Map<number, boolean>>(
@@ -822,7 +859,7 @@ export function HarvestTable({
                                                     )}
                                                     {harvest.locations.length > 0 && (
                                                         <ul className="contents">
-                                                            {harvest.locations.map((loc) => {
+                                                            {sortLocationsByFilterMatch(harvest.locations, address, position).map((loc) => {
                                                                 const label: string[] = [];
                                                                 if (loc.position)
                                                                     label.push(
@@ -835,10 +872,11 @@ export function HarvestTable({
                                                                     label.push(`kasse ${loc.boxes.join(", ")}`);
                                                                 if (loc.location_note)
                                                                     label.push(loc.location_note);
+                                                                const dimmed = isLocationDimmed(loc, address, position);
                                                                 return (
                                                                     <li
                                                                         key={loc.id}
-                                                                        className="inline-flex items-center gap-1 mr-3">
+                                                                        className={`inline-flex items-center gap-1 mr-3 ${dimmed ? "opacity-50" : ""}`}>
                                                                         <AddressBadge address={loc.address} />
                                                                         {label.join(" · ")}
                                                                     </li>
@@ -893,7 +931,7 @@ export function HarvestTable({
                                                 style={{ borderColor: "var(--color3)" }}>
                                                 {harvest.locations.length > 0 ? (
                                                     <ul className="space-y-0.5">
-                                                        {harvest.locations.map((loc) => {
+                                                        {sortLocationsByFilterMatch(harvest.locations, address, position).map((loc) => {
                                                             const label: string[] = [];
                                                             if (loc.position)
                                                                 label.push(
@@ -908,10 +946,11 @@ export function HarvestTable({
                                                                 );
                                                             if (loc.location_note)
                                                                 label.push(loc.location_note);
+                                                            const dimmed = isLocationDimmed(loc, address, position);
                                                             return (
                                                                 <li
                                                                     key={loc.id}
-                                                                    className="flex items-center gap-1 text-sm text-zinc-800">
+                                                                    className={`flex items-center gap-1 text-sm text-zinc-800 ${dimmed ? "opacity-50" : ""}`}>
                                                                     <AddressBadge
                                                                         address={loc.address}
                                                                     />
