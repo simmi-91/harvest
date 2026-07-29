@@ -288,7 +288,13 @@ export function PlantInfoReview({ plantInfo, edits, onEditChange, saving, onConf
             </div>
 
             <div className="flex flex-col gap-4">
-                {plantInfo.map((info, i) => {
+                {plantInfo
+                    .map((info, i) => ({ info, i }))
+                    .sort((a, b) => {
+                        if (a.info.is_new !== b.info.is_new) return a.info.is_new ? -1 : 1;
+                        return 0;
+                    })
+                    .map(({ info, i }) => {
                     const isSkipped = edits.get(i)?.skip ?? false;
                     const latinName = getField(i, 'latin_name', info);
                     const instructions = getField(i, 'harvest_instructions', info);
