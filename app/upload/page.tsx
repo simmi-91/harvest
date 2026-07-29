@@ -534,6 +534,14 @@ export default function UploadPage() {
               return (edit?.amount !== undefined ? edit.amount : e.amount) === null;
           }).length
         : 0;
+    const longAmountEntries = parsed
+        ? parsed.entries.filter((e, i) => {
+              if (skipped.has(i) || !e.plant_id) return false;
+              const edit = edits.get(i);
+              const amount = edit?.amount !== undefined ? edit.amount : e.amount;
+              return amount !== null && amount.length > 100;
+          })
+        : [];
 
     function updateYearWeeks(year: number, weeksStr: string) {
         const weeks = weeksStr
@@ -686,6 +694,11 @@ export default function UploadPage() {
                                                 {missingAmountCount} innslag mangler mengde
                                             </span>
                                         )}
+                                        {longAmountEntries.length > 0 && (
+                                            <span className="block text-red-600 text-xs mt-0.5">
+                                                {longAmountEntries.length} innslag har mengdetekst over 100 tegn og vil feile
+                                            </span>
+                                        )}
                                     </div>
                                     <button
                                         onClick={() => {
@@ -734,6 +747,13 @@ export default function UploadPage() {
                             </div>
                         ) : null;
                     })()}
+
+                    {longAmountEntries.length > 0 && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            <strong>{longAmountEntries.length} innslag har mengdetekst over 100 tegn og vil feile ved lagring:</strong>{" "}
+                            {longAmountEntries.map((e) => e.plant_name).join(", ")}. Forkort mengdeteksten manuelt før du lagrer.
+                        </div>
+                    )}
 
                     {parsed.other_weeks.length > 0 && (
                         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
