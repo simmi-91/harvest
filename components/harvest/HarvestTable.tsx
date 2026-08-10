@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PlantIcon } from "@/lib/plantCategories";
 import {
     ADDRESSES,
@@ -33,6 +33,78 @@ type EditDraft = {
 
 type PlantOption = { id: number; name: string; category: string };
 
+// ── Plant combobox ────────────────────────────────────────────────────────────
+
+function PlantCombobox({
+    plants,
+    value,
+    onChange,
+}: {
+    plants: PlantOption[];
+    value: number;
+    onChange: (id: number) => void;
+}) {
+    const [search, setSearch] = useState("");
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const selected = plants.find((p) => p.id === value) ?? null;
+    const inputDisplay = open ? search : (selected?.name ?? "");
+
+    const filtered = plants.filter((p) =>
+        p.name.toLowerCase().includes(search.toLowerCase().trim())
+    );
+
+    useEffect(() => {
+        function handleClick(e: MouseEvent) {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setOpen(false);
+                setSearch("");
+            }
+        }
+        document.addEventListener("mousedown", handleClick);
+        return () => document.removeEventListener("mousedown", handleClick);
+    }, []);
+
+    function select(p: PlantOption) {
+        onChange(p.id);
+        setOpen(false);
+        setSearch("");
+    }
+
+    return (
+        <div ref={containerRef} className="relative">
+            <input
+                type="text"
+                placeholder="Søk plante…"
+                value={inputDisplay}
+                onFocus={() => {
+                    setOpen(true);
+                    setSearch("");
+                }}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            />
+            {open && (
+                <div className="absolute z-10 mt-1 w-full max-h-52 overflow-y-auto rounded border border-zinc-200 bg-white shadow-md">
+                    {filtered.length === 0 && (
+                        <p className="px-3 py-2 text-xs text-zinc-400">Ingen treff</p>
+                    )}
+                    {filtered.map((p) => (
+                        <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => select(p)}
+                            className="w-full text-left px-3 py-1.5 text-sm text-zinc-900 hover:bg-zinc-50 transition-colors">
+                            {p.name}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Location row editor ───────────────────────────────────────────────────────
 
 function LocationRow({
@@ -56,10 +128,7 @@ function LocationRow({
                 <label className="text-xs text-zinc-500">Adresse</label>
                 <select
                     value={loc.address}
-                    onChange={(e) => {
-                        set("address", e.target.value);
-                        set("position", null);
-                    }}
+                    onChange={(e) => onChange({ ...loc, address: e.target.value, position: null })}
                     className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-400">
                     {ADDRESSES.map((a) => (
                         <option key={a} value={a}>
@@ -205,16 +274,11 @@ function InlineEditForm({
                 </div>
                 <div className="flex flex-col gap-0.5 flex-1 min-w-[160px]">
                     <label className="text-xs font-medium text-zinc-500">Plante</label>
-                    <select
+                    <PlantCombobox
+                        plants={plants}
                         value={draft.plant_id}
-                        onChange={(e) => set("plant_id", parseInt(e.target.value))}
-                        className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-400">
-                        {plants.map((p) => (
-                            <option key={p.id} value={p.id}>
-                                {p.name}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={(id) => set("plant_id", id)}
+                    />
                 </div>
             </div>
 
@@ -390,16 +454,11 @@ function AddHarvestForm({
                 </div>
                 <div className="flex flex-col gap-0.5 flex-1 min-w-[160px]">
                     <label className="text-xs font-medium text-zinc-500">Plante</label>
-                    <select
+                    <PlantCombobox
+                        plants={plants}
                         value={draft.plant_id}
-                        onChange={(e) => set("plant_id", parseInt(e.target.value))}
-                        className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-400">
-                        {plants.map((p) => (
-                            <option key={p.id} value={p.id}>
-                                {p.name}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={(id) => set("plant_id", id)}
+                    />
                 </div>
             </div>
 
